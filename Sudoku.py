@@ -3,7 +3,24 @@ from copy import deepcopy
 
 
 class SudokuGrid():
-	def __init__(self, width, **kwargs):
+	'''
+	Sudoku board.
+	Attributes:
+	width = size of the board - defaults to 3.
+	rows = List of 9 lists of 9 values. The root from which the grid is built.
+	cols = List of 9 lists of 9 values. Derived from rows.
+	regions = List of 9 lists of 9 values. Derived from rows.
+	coordrows and coorcols = Same as above but stores the coordinates of each cell in tuple form.
+	coord_dict = Dictionary of coordinates (keys) and values.
+	Standalone methods:
+	print_grid(): Prints the grid to the console, taking the rows attribute as argument.
+	printable_coords(): Returns a list of rows where the values have been replaced by their coordinates
+		in symmetric fashion. Pass it to the method above to have a pretty grid of coordinates printed.
+	populate_grid(): Populates the grid with the argument passed- usually a character.
+		Optionally accepts 'rand' to randomize the board (ignoring sudoku rules) or 'clear' to clear it.
+	'''
+
+	def __init__(self, width=3, **kwargs):
 		self.width = width
 		self.rows = self.build_rows(defval='')
 
@@ -53,44 +70,6 @@ class SudokuGrid():
 					x += 3
 		return reglist
 
-	def print_grid(self, rows):
-		'''
-		Pretty prints the grid using a list of rows.
-		'''
-		rowstr = ''.join(map(str, rows[0]))
-		cellen = len(rowstr)//(self.width*3)
-		regsep = ('+' + ('-'*(cellen*3)) + ('----'))*self.width + '+'
-
-		print(regsep)
-		for y in range(0,self.width*3,3):
-			for row in rows[y:y+3]:
-				print('| ', end='')
-				for x in range(0,self.width*3,3):
-					print(*row[x:x+3], '| ', end='')
-				print('')
-			print(regsep)
-
-	def printable_coords(self, rows): 
-		'''
-		Replaces the values populated on the grid by their coordinates. Returns a list of rows - much like build_rows().
-		For widths or heights larger than 3, zeroes are inserted before the relevant coordinates to ensure symmetry.
-		'''
-		rowscopy = deepcopy(rows)
-		colscopy = self.build_cols(rowscopy)
-		max_irow_len = len(str(self.width*3))
-		max_icol_len = len(str(self.width*3))
-		for row in rowscopy:
-			for item in row:
-				icol = str(row.index(rowscopy[rowscopy.index(row)][row.index(item)]))
-				while len(icol) < max_icol_len:
-					icol = '0' + icol
-				irow = str(rowscopy.index(row))
-				while len(irow) < max_irow_len:
-					irow = '0' + irow
-				rowscopy[rowscopy.index(row)][row.index(item)] = irow + icol
-
-		return rowscopy
-
 	def build_coords(self, rows): 
 		'''
 		Replaces the values populated on the grid by their coordinates. Returns a list of rows containing tuple pairs..
@@ -111,6 +90,27 @@ class SudokuGrid():
 
 		return rowscopy, coordscols
 
+	def printable_coords(self): 
+		'''
+		Replaces the values populated on the grid by their coordinates. Returns a list of rows - much like build_rows().
+		For widths or heights larger than 3, zeroes are inserted before the relevant coordinates to ensure symmetry.
+		'''
+		rowscopy = deepcopy(self.rows)
+		colscopy = self.build_cols(rowscopy)
+		max_irow_len = len(str(self.width*3))
+		max_icol_len = len(str(self.width*3))
+		for row in rowscopy:
+			for item in row:
+				icol = str(row.index(rowscopy[rowscopy.index(row)][row.index(item)]))
+				while len(icol) < max_icol_len:
+					icol = '0' + icol
+				irow = str(rowscopy.index(row))
+				while len(irow) < max_irow_len:
+					irow = '0' + irow
+				rowscopy[rowscopy.index(row)][row.index(item)] = irow + icol
+
+		return rowscopy
+
 	def build_coord_dict(self,rows,coords):
 		'''
 		Builds a dictionary, where keys are the coordinates built by build_coords(), and values are the actual values originally populated on the grid.
@@ -120,6 +120,23 @@ class SudokuGrid():
 			for col in range(self.width*3):
 				coord_dict[coords[row][col]] = rows[row][col]
 		return coord_dict
+
+	def print_grid(self, rows):
+		'''
+		Pretty prints the grid using a list of rows.
+		'''
+		rowstr = ''.join(map(str, rows[0]))
+		cellen = len(rowstr)//(self.width*3)
+		regsep = ('+' + ('-'*(cellen*3)) + ('----'))*self.width + '+'
+
+		print(regsep)
+		for y in range(0,self.width*3,3):
+			for row in rows[y:y+3]:
+				print('| ', end='')
+				for x in range(0,self.width*3,3):
+					print(*row[x:x+3], '| ', end='')
+				print('')
+			print(regsep)
 
 	def populate_grid(self, val='rand'):
 		'''Populates the grid. Accepts one character
@@ -135,16 +152,18 @@ class SudokuGrid():
 			self.build_rows(defval=val)
 			self.print_grid(self.rows)
 
-
+	def pop_valid_board(self):
+		pass
 
 
 
 			
 
-t = SudokuGrid(3)
+t = SudokuGrid()
 
 
-#t.populate_grid('a')
+
+t.populate_grid('a')
 #t.print_grid(t.printable_coords(t.rows))
 #t.print_grid(t.coordrows)
 #print(t.coord_dict)
