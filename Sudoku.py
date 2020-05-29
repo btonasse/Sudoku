@@ -1,4 +1,4 @@
-from random import randint
+from random import randint, choice
 from copy import deepcopy
 
 
@@ -10,7 +10,7 @@ class SudokuGrid():
 	rows = List of 9 lists of 9 values. The root from which the grid is built.
 	cols = List of 9 lists of 9 values. Derived from rows.
 	regions = List of 9 lists of 9 values. Derived from rows.
-	coordrows and coorcols = Same as above but stores the coordinates of each cell in tuple form.
+	coordrows and coorcols and coordregs = Same as above but stores the coordinates of each cell in tuple form.
 	coord_dict = Dictionary of coordinates (keys) and values.
 	Standalone methods:
 	print_grid(): Prints the grid to the console, taking the rows attribute as argument.
@@ -23,6 +23,8 @@ class SudokuGrid():
 	def __init__(self, width=3, **kwargs):
 		self.width = width
 		self.rows = self.build_rows(defval='')
+
+		self.last_valid_region = 0
 
 	def build_rows(self, defval='', args=[], kwargs={}):
 		'''
@@ -42,8 +44,8 @@ class SudokuGrid():
 		self.rows = rowlist
 		self.cols = self.build_cols(rowlist)
 		self.regions = self.build_regions(rowlist)
-		self.coordrows, self.coordcols = self.build_coords(rowlist)
-		self.coord_dict = self.build_coord_dict(rowlist,self.coordrows)
+		self.coordrows, self.coordcols, self.coordregs = self.build_coords(rowlist)
+		self.coord_dict = self.build_coord_dict()
 		return rowlist
 
 	def build_cols(self, rows):
@@ -86,9 +88,10 @@ class SudokuGrid():
 				newtuple = irow, icol
 				rowscopy[rowscopy.index(row)][row.index(item)] = newtuple
 		
-		coordscols = self.build_cols(rowscopy)
+		coordcols = self.build_cols(rowscopy)
+		coordregs = self.build_regions(rowscopy)
 
-		return rowscopy, coordscols
+		return rowscopy, coordcols, coordregs
 
 	def printable_coords(self): 
 		'''
@@ -111,15 +114,18 @@ class SudokuGrid():
 
 		return rowscopy
 
-	def build_coord_dict(self,rows,coords):
+	def build_coord_dict(self):
 		'''
-		Builds a dictionary, where keys are the coordinates built by build_coords(), and values are the actual values originally populated on the grid.
+		Builds a list of dictionaries where keys are the coordinates built by build_coords(),
+		and values are the actual values originally populated on the grid. Each dictionary corresponds to one region.
 		'''
-		coord_dict = {}
-		for row in range(self.width*3):
-			for col in range(self.width*3):
-				coord_dict[coords[row][col]] = rows[row][col]
-		return coord_dict
+		w = self.width*3
+		coord_dict_reglist = []
+		for i in range(w):
+			d = dict(zip(self.coordregs[i], self.regions[i]))
+			coord_dict_reglist.append(d)
+		return coord_dict_reglist
+
 
 	def print_grid(self, rows):
 		'''
@@ -152,8 +158,59 @@ class SudokuGrid():
 			self.build_rows(defval=val)
 			self.print_grid(self.rows)
 
-	def pop_valid_board(self):
-		pass
+	def pop_valid_board(self, first_time=True):
+		if first_time:
+			self.populate_grid('')
+		for i, dic in enumerate(self.coord_dict):
+			if i < self.last_valid_region:
+				continue
+			if i == self.last_valid_region:
+				for r, c in self.coord_dict[i].keys():
+					self.rows[r][c] = ''
+					self.cols = self.build_cols(self.rows)
+					self.regions = self.build_regions(self.rows)
+					self.coordrows, self.coordcols, self.coordregs = self.build_coords(self.rows)
+					self.coord_dict = self.build_coord_dict()
+				for r, c in self.coord_dict[i+1].keys():
+					self.rows[r][c] = ''
+					self.cols = self.build_cols(self.rows)
+					self.regions = self.build_regions(self.rows)
+					self.coordrows, self.coordcols, self.coordregs = self.build_coords(self.rows)
+					self.coord_dict = self.build_coord_dict()
+				for r, c in self.coord_dict[i+2].keys():
+					self.rows[r][c] = ''
+					self.cols = self.build_cols(self.rows)
+					self.regions = self.build_regions(self.rows)
+					self.coordrows, self.coordcols, self.coordregs = self.build_coords(self.rows)
+					self.coord_dict = self.build_coord_dict()				
+
+			for r, c in dic.keys():
+				valids = [number for number in range(1,self.width*3+1)]
+				while True:
+					try:
+						n = choice(valids)
+					except IndexError:
+						self.last_valid_region = i-2
+						if self.last_valid_region < 0:
+							self.last_valid_region = 0
+						print(f'Oops, no more valid numbers for region {i}. Restarting from region: {i-2}')
+						self.pop_valid_board(first_time=False)
+						return
+						
+					if n in (self.rows[r]+self.cols[c]+self.regions[i]):
+						valids.remove(n)
+						continue
+					else:
+						self.rows[r][c] = n
+						self.cols = self.build_cols(self.rows)
+						self.regions = self.build_regions(self.rows)
+						self.coordrows, self.coordcols, self.coordregs = self.build_coords(self.rows)
+						self.coord_dict = self.build_coord_dict()
+						self.print_grid(self.rows)
+						break
+
+
+
 
 
 
@@ -162,11 +219,9 @@ class SudokuGrid():
 t = SudokuGrid()
 
 
+t.pop_valid_board()
 
-t.populate_grid('a')
-#t.print_grid(t.printable_coords(t.rows))
-#t.print_grid(t.coordrows)
-#print(t.coord_dict)
+
 
 	
 
