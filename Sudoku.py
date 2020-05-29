@@ -10,8 +10,9 @@ class SudokuGrid():
 	rows = List of 9 lists of 9 values. The root from which the grid is built.
 	cols = List of 9 lists of 9 values. Derived from rows.
 	regions = List of 9 lists of 9 values. Derived from rows.
-	coordrows and coorcols and coordregs = Same as above but stores the coordinates of each cell in tuple form.
+	coordregs = Same as above but stores the coordinates of each cell in tuple form.
 	coord_dict = Dictionary of coordinates (keys) and values.
+	result = the final resolved board
 	Standalone methods:
 	print_grid(): Prints the grid to the console, taking the rows attribute as argument.
 	printable_coords(): Returns a list of rows where the values have been replaced by their coordinates
@@ -23,8 +24,9 @@ class SudokuGrid():
 	def __init__(self, width=3, **kwargs):
 		self.width = width
 		self.rows = self.build_rows(defval='')
-
-		self.last_valid_region = 0
+		self.last_valid_region = 0 #used when generating a valid sudoku board
+		self.pop_valid_board()
+		self.result = self.rows
 
 	def build_rows(self, defval='', args=[], kwargs={}):
 		'''
@@ -44,7 +46,7 @@ class SudokuGrid():
 		self.rows = rowlist
 		self.cols = self.build_cols(rowlist)
 		self.regions = self.build_regions(rowlist)
-		self.coordrows, self.coordcols, self.coordregs = self.build_coords(rowlist)
+		self.coordregs = self.build_coords(rowlist)
 		self.coord_dict = self.build_coord_dict()
 		return rowlist
 
@@ -88,10 +90,9 @@ class SudokuGrid():
 				newtuple = irow, icol
 				rowscopy[rowscopy.index(row)][row.index(item)] = newtuple
 		
-		coordcols = self.build_cols(rowscopy)
 		coordregs = self.build_regions(rowscopy)
 
-		return rowscopy, coordcols, coordregs
+		return coordregs
 
 	def printable_coords(self): 
 		'''
@@ -160,30 +161,20 @@ class SudokuGrid():
 
 	def pop_valid_board(self, first_time=True):
 		if first_time:
-			self.populate_grid('')
+			print('Generating a valid board. Please wait...')
+			#self.populate_grid('')
 		for i, dic in enumerate(self.coord_dict):
 			if i < self.last_valid_region:
 				continue
 			if i == self.last_valid_region:
-				for r, c in self.coord_dict[i].keys():
-					self.rows[r][c] = ''
-					self.cols = self.build_cols(self.rows)
-					self.regions = self.build_regions(self.rows)
-					self.coordrows, self.coordcols, self.coordregs = self.build_coords(self.rows)
-					self.coord_dict = self.build_coord_dict()
-				for r, c in self.coord_dict[i+1].keys():
-					self.rows[r][c] = ''
-					self.cols = self.build_cols(self.rows)
-					self.regions = self.build_regions(self.rows)
-					self.coordrows, self.coordcols, self.coordregs = self.build_coords(self.rows)
-					self.coord_dict = self.build_coord_dict()
-				for r, c in self.coord_dict[i+2].keys():
-					self.rows[r][c] = ''
-					self.cols = self.build_cols(self.rows)
-					self.regions = self.build_regions(self.rows)
-					self.coordrows, self.coordcols, self.coordregs = self.build_coords(self.rows)
-					self.coord_dict = self.build_coord_dict()				
-
+				for times in range(3):
+					for r, c in self.coord_dict[i+times].keys():
+						self.rows[r][c] = ''
+						self.cols = self.build_cols(self.rows)
+						self.regions = self.build_regions(self.rows)
+						self.coordregs = self.build_coords(self.rows)
+						self.coord_dict = self.build_coord_dict()
+				
 			for r, c in dic.keys():
 				valids = [number for number in range(1,self.width*3+1)]
 				while True:
@@ -193,7 +184,6 @@ class SudokuGrid():
 						self.last_valid_region = i-2
 						if self.last_valid_region < 0:
 							self.last_valid_region = 0
-						print(f'Oops, no more valid numbers for region {i}. Restarting from region: {i-2}')
 						self.pop_valid_board(first_time=False)
 						return
 						
@@ -204,10 +194,10 @@ class SudokuGrid():
 						self.rows[r][c] = n
 						self.cols = self.build_cols(self.rows)
 						self.regions = self.build_regions(self.rows)
-						self.coordrows, self.coordcols, self.coordregs = self.build_coords(self.rows)
+						self.coordregs = self.build_coords(self.rows)
 						self.coord_dict = self.build_coord_dict()
-						self.print_grid(self.rows)
 						break
+		return
 
 
 
@@ -218,8 +208,8 @@ class SudokuGrid():
 
 t = SudokuGrid()
 
+t.print_grid(t.result)
 
-t.pop_valid_board()
 
 
 
