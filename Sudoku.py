@@ -30,6 +30,7 @@ class SudokuGrid():
 		self.coord_dict = self.build_coord_dict(self.coordregs, self.regions)
 		self.pop_valid_board()
 		self.result = self.rows
+		self.build_puzzle(self.result)
 
 	def build_rows(self, defval=' ', args=[], kwargs={}):
 		'''
@@ -167,7 +168,7 @@ class SudokuGrid():
 			if i == last_valid_region:
 				for times in range(3):
 					for r, c in self.coord_dict[i+times].keys():
-						self.rows[r][c] = ''
+						self.rows[r][c] = ' '
 						self.cols = self.build_cols(self.rows)
 						self.regions = self.build_regions(self.rows)
 						self.coordregs = self.build_coords(self.rows)
@@ -192,8 +193,78 @@ class SudokuGrid():
 						self.coord_dict = self.build_coord_dict(self.coordregs, self.regions)
 						break
 
-	def build_puzzle(self):
-		pass
+	def remove_randcell(self, rows, howmany=1): 
+		newrows = deepcopy(rows)
+		for i in range(howmany):
+			while True:
+				r = randint(0,8)
+				c = randint(0,8)
+				if newrows[r][c] == ' ':
+					continue
+				else:
+					newrows[r][c] = ' '
+					break
+		return newrows
+
+	def solve(self, rows, solutions=[], tries=0):
+		rowscopy = deepcopy(rows)
+		colscopy = self.build_cols(rows)
+		regionscopy = self.build_regions(rows)
+		coordregscopy = self.build_coords(rows)
+		coord_dictcopy = self.build_coord_dict(coordregscopy, regionscopy)
+		solutions.append({}) # list of solutions.
+		correct_cells = solutions
+
+		for i, dic in enumerate(coord_dictcopy):
+			for r, c in dic.keys():
+				if dic[r,c] != ' ':
+					continue
+				valids = [number for number in range(1,self.width*3+1)]
+				while True:
+					try:
+						n = choice(valids)
+					except IndexError:
+						self.solve(rows)
+						return
+					if n in (rowscopy[r]+colscopy[c]+regionscopy[i]):
+						valids.remove(n)
+						continue
+					else:
+						rowscopy[r][c] = n
+						correct_cells[tries][r,c] = n
+						colscopy = self.build_cols(rowscopy)
+						regionscopy = self.build_regions(rowscopy)
+						coordregscopy = self.build_coords(rowscopy)
+						coord_dictcopy = self.build_coord_dict(coordregscopy, regionscopy)
+						break
+		if tries > 0:
+			if correct_cells[tries] == correct_cells[tries-1]:
+				correct_cells.pop()
+				return
+			else:
+				self.build_puzzle(rows, correct_cells, tries+1, first_time=False)
+		self.solve(rows, solutions=correct_cells, tries=tries+1)
+		return 
+
+	def build_puzzle(self, rows, solutions=[], tries=0, first_time=True):
+		if first_time:
+			newrows = self.remove_randcell(rows, howmany=1)
+		elif tries == 0:
+			newrows = self.remove_randcell(rows)
+		self.solve(newrows, solutions, tries)
+		no_of_solutions = len(solutions)
+		if no_of_solutions > 1:
+			return
+		else:
+			self.puzzle = newrows
+			self.build_puzzle(newrows, solutions=[], tries=0, first_time=False)
+
+
+
+
+
+
+
 
 
 
@@ -205,7 +276,11 @@ class SudokuGrid():
 
 t = SudokuGrid()
 
+t.print_grid(t.puzzle)
 t.print_grid(t.result)
+
+
+
 
 
 
