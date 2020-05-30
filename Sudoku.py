@@ -7,6 +7,7 @@ class SudokuGrid():
 	Sudoku board.
 	Attributes:
 	width = size of the board - defaults to 3.
+	emptycells = With how many empty cells the program should try to generate the puzzle.
 	rows = List of 9 lists of 9 values. The root from which the grid is built.
 	cols = List of 9 lists of 9 values. Derived from rows.
 	regions = List of 9 lists of 9 values. Derived from rows.
@@ -21,8 +22,9 @@ class SudokuGrid():
 		Optionally accepts 'rand' to randomize the board (ignoring sudoku rules) or 'clear' to clear it.
 	'''
 
-	def __init__(self, width=3, **kwargs):
+	def __init__(self, width=3, emptycells=48, **kwargs):
 		self.width = width
+		self.emptycells = emptycells
 		self.rows = self.build_rows()
 		self.cols = self.build_cols(self.rows)
 		self.regions = self.build_regions(self.rows)
@@ -30,7 +32,7 @@ class SudokuGrid():
 		self.coord_dict = self.build_coord_dict(self.coordregs, self.regions)
 		self.pop_valid_board()
 		self.result = self.rows
-		self.build_puzzle(self.result)
+		self.build_puzzle(self.result, emptycells=self.emptycells)
 
 	def build_rows(self, defval=' ', args=[], kwargs={}):
 		'''
@@ -206,30 +208,53 @@ class SudokuGrid():
 					break
 		return newrows
 
-	def solve(self, rows, solutions=[], tries=0):
+	def solve(self, rows, solutions=[], tries=0, backtracks=0):
 		rowscopy = deepcopy(rows)
 		colscopy = self.build_cols(rows)
 		regionscopy = self.build_regions(rows)
 		coordregscopy = self.build_coords(rows)
 		coord_dictcopy = self.build_coord_dict(coordregscopy, regionscopy)
-		solutions.append({}) # list of solutions.
-		correct_cells = solutions
+		correct_cells = solutions # list of solutions.
+		correct_cells.append({}) 
+		numbers_found = 0
 
+		
+		
+		if backtracks:
+			correct_cells.pop()
+			backtracks = min(len(correct_cells[tries]),1)
+			for r, c in list(correct_cells[tries].keys())[-backtracks:]:
+				rowscopy[r][c] = ' '
+				colscopy = self.build_cols(rows)
+				regionscopy = self.build_regions(rows)
+				coordregscopy = self.build_coords(rows)
+				coord_dictcopy = self.build_coord_dict(coordregscopy, regionscopy)		
+				
 		for i, dic in enumerate(coord_dictcopy):
 			for r, c in dic.keys():
 				if dic[r,c] != ' ':
 					continue
 				valids = [number for number in range(1,self.width*3+1)]
+
 				while True:
 					try:
 						n = choice(valids)
 					except IndexError:
-						self.solve(rows)
-						return
+						try:
+							#print(f'line 227 - NO VALID NUMBERS, calling solve again. Length of inserted cells = {len(correct_cells[tries])//3}')
+							#correct_cells.pop() #Commented to test the backtracking
+							self.solve(rowscopy, solutions=correct_cells, tries=tries, backtracks=5) #added backtracks and rows->rowscopy for testing
+							return
+						except RecursionError:
+							#print(f"Recursion Error. Here's the best I could do:")
+							self.finish_this_already = True
+							return
 					if n in (rowscopy[r]+colscopy[c]+regionscopy[i]):
 						valids.remove(n)
 						continue
 					else:
+						numbers_found += 1
+						#print(f'line 235 - {numbers_found}th valid number found. tries={tries}')
 						rowscopy[r][c] = n
 						correct_cells[tries][r,c] = n
 						colscopy = self.build_cols(rowscopy)
@@ -238,26 +263,43 @@ class SudokuGrid():
 						coord_dictcopy = self.build_coord_dict(coordregscopy, regionscopy)
 						break
 		if tries > 0:
-			if correct_cells[tries] == correct_cells[tries-1]:
+			if correct_cells[tries] == correct_cells[tries-1]: #weak check. its possible that the same solution is picked again even though there are others.
 				correct_cells.pop()
+				#print(f'line 245 - new solution found is same as last one (tries = {tries}. Back to build_puzzle')
 				return
 			else:
-				self.build_puzzle(rows, correct_cells, tries+1, first_time=False)
+				#print(f'line 249 - NEW UNIQUE SOLUTION (tries = {tries}! Back to build puzzle.')
+				return
+		#print(f'line 249 - solution found (tries={tries}). looking for more possible solutions')
 		self.solve(rows, solutions=correct_cells, tries=tries+1)
 		return 
 
-	def build_puzzle(self, rows, solutions=[], tries=0, first_time=True):
-		if first_time:
-			newrows = self.remove_randcell(rows, howmany=1)
-		elif tries == 0:
+	def build_puzzle(self, rows, solutions=[], tries=0, emptycells=48):
+		if tries == 0:
 			newrows = self.remove_randcell(rows)
+		else:
+			newrows = rows
 		self.solve(newrows, solutions, tries)
 		no_of_solutions = len(solutions)
+		empty_cells = sum(r.count(' ') for r in newrows)
+		#print(f'line 262 - Empty_cells: {empty_cells}', f'no_of_solutions found: {no_of_solutions}')
 		if no_of_solutions > 1:
-			return
+			if empty_cells < emptycells:
+				#print(f'line 280 - less than ideal no of empty cells. Trying again.')
+				self.build_puzzle(self.puzzle, solutions=[], tries=0, emptycells=self.emptycells)
+				if self.finish_this_already:
+					return
+				return
+			else:
+				return
 		else:
+			self.solutions = solutions
 			self.puzzle = newrows
-			self.build_puzzle(newrows, solutions=[], tries=0, first_time=False)
+			if empty_cells < emptycells:
+				#print('line 274 - REMOVING NEXT CELL')
+				self.build_puzzle(newrows, solutions=[], tries=0, emptycells=self.emptycells)
+			else:
+				return
 
 
 
@@ -274,7 +316,7 @@ class SudokuGrid():
 
 			
 
-t = SudokuGrid()
+t = SudokuGrid(emptycells=12)
 
 t.print_grid(t.puzzle)
 t.print_grid(t.result)
