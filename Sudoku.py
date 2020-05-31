@@ -34,6 +34,7 @@ class SudokuGrid():
 		self.result = self.rows
 
 		self.puzzle = self.propose_puzzle(self.result, self.clues)
+		self.solvestate, self.attempts, self.puzzlestate = self.constraint_solve(self.puzzle)
 
 	def build_rows(self, defval=' ', args=[], kwargs={}):
 		'''
@@ -75,7 +76,7 @@ class SudokuGrid():
 					x += 3
 		return reglist
 
-	def build_coords(self, rows, organize_by_rows=False): 
+	def build_coords(self, rows): 
 		'''
 		Replaces the values populated on the grid by their coordinates. Returns a list of rows containing tuple pairs..
 		'''
@@ -93,8 +94,6 @@ class SudokuGrid():
 		
 		
 		coordregs = self.build_regions(rowscopy)
-		if organize_by_rows:
-			coordregs = rowscopy
 		
 		return coordregs
 
@@ -198,8 +197,6 @@ class SudokuGrid():
 						self.coord_dict = self.build_coord_dict(self.coordregs, self.regions)
 						break
 	
-	
-
 	def propose_puzzle(self, prows, clues = 17): #the minimum squares necessary for a unique solution
 		puzzle = self.populate_grid()
 		while sum(x.count(' ') for x in puzzle) > (81-clues): 
@@ -208,7 +205,7 @@ class SudokuGrid():
 			puzzle[r][c] = prows[r][c]
 		return puzzle
 
-	def constraint_solve(self, puzzle, times=0):
+	def constraint_solve(self, puzzle, times=0, oldprows=[[]]):
 		prows = deepcopy(puzzle)
 		pcols = self.build_cols(prows)
 		pregions = self.build_regions(prows)
@@ -217,87 +214,66 @@ class SudokuGrid():
 		pcoord_dict = self.build_coord_dict(pcoordregs, pregions)
 		regpossibles = deepcopy(pcoord_dict)
 
-		pcrows = self.build_coords(prows, organize_by_rows=True)
-		pcdictrows = self.build_coord_dict(pcrows, prows)
-		rowspossibles = deepcopy(pcdictrows)
-
-		pccols = self.build_cols(self.build_coords(prows, organize_by_rows=True))
-		pcdictcols = self.build_coord_dict(pccols, pcols)
-		colspossibles = deepcopy(pcdictcols)
-
-		print(f'times: {times}')
+		#print(f'times: {times}')
 
 		for i, dic in enumerate(regpossibles):
 			for r, c in dic.keys():
 				if isinstance(dic[r,c], int):
 					continue 
 				dic[r,c] = [number for number in range(1,self.width*3+1) if number not in (prows[r]+pcols[c]+pregions[i]) and number not in dic]
-				rowspossibles[r][r,c] = dic[r,c]
-				colspossibles[c][r,c] = dic[r,c]
-		for i, dic in enumerate(regpossibles):
+
+		for dic in regpossibles:
 			l = [item for sublist in dic.values() if isinstance(sublist, list) for item in sublist]
-			for i, (r, c) in enumerate(dic.keys()):
+			for r, c in dic.keys():
 				if isinstance(dic[r,c], int):
 					continue
 				if len(dic[r,c]) == 1:
-					rowspossibles[r][r,c] = dic[r,c][0]
-					colspossibles[c][r,c] = dic[r,c][0]					
 					dic[r,c] = dic[r,c][0]
 					prows[r][c] = dic[r,c]
 				if isinstance(dic[r,c], list):
 					for number in dic[r,c]:
 						if l.count(number) == 1:
 							dic[r,c] = number
-							rowspossibles[r][r,c] = number
-							colspossibles[c][r,c] = number
 							prows[r][c] = number
-
-		#Now implement the next step: trying one possibility and see if it works.
-
-
-		while times < 10:
-			self.constraint_solve(prows, times=times+1)
-			break
-		if times == 10:
-			self.print_grid(prows)
-			for dic in regpossibles:
-				print(dic.values(), end='\n\n')
-			return prows
-
-				
-				
-
-			
-
-
-
-
-		'''
-		Next steps:				
-		1) Check if there is any cell with only one valid number 
-			a) Add it to the puzzle and recalculate possibles.
-			b) Save the board state in original var. Back to 1 until not possible.
-		2) Deepcopy original var. Iterate through board (maybe use printable_coords to build a dict to have a numberically ascending list of keys?)
-			a) Copy list of possibles of each cell (check if shallowcopy is needed to prevent modifying deepcopied var)
-			b) Try to add numbers, removing impossible ones from their list.
-			c) Keep doing this until IndexError.
-			d) IndexError handling: try to add a different possible number to cell-1. Use a variable to track from which index to take the number.
-				d1) If sucessful, continue until next IndexError and back to d.
-				d2) If still not possible, choose next possible number for cell-1.
-				d3) If cell-1 has no more possible numbers, IndexError. will backtrack to cell-2. Need a variable to track this, as cell-1 will have to be reset too.
-		'''
-
 	
+		while True:
+			if prows == oldprows:
+				#print('Cannot solve further')
+				return 'incomplete', times, prows
+			for dic in regpossibles:
+				if any(cell == [] for cell in dic.values()):
+					#print('Contradiction found.')
+					return False, times, puzzle
+			for i, row in enumerate(prows):
+				if not all(type(cell) is int for cell in row):
+					break
+				else:
+					if i < 8:
+						continue
+					else:
+						pass
+				#print('Puzzle solved')
+				return 'solved', times, prows
+			break
+		
+		oldprows = prows
+		return self.constraint_solve(prows, times=times+1, oldprows=prows)
+		
 
+				
+	#Now implement the next step: trying one possibility and see if it works.		
 
 			
 
 t = SudokuGrid(clues=35)
 
-
+print('Final result:')
 t.print_grid(t.result)
+print('Proposed puzzle:')
 t.print_grid(t.puzzle)
-t.constraint_solve(t.puzzle)
+print('Puzzle solve state:', f'Attempts: {t.attempts}', f'Solve state: {t.solvestate}', sep='\n')
+t.print_grid(t.puzzlestate)
+
 
 
 
