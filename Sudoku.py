@@ -22,9 +22,9 @@ class SudokuGrid():
 		Optionally accepts 'rand' to randomize the board (ignoring sudoku rules) or 'clear' to clear it.
 	'''
 
-	def __init__(self, width=3, emptycells=48, **kwargs):
+	def __init__(self, width=3, clues=35):
 		self.width = width
-		self.emptycells = emptycells
+		self.clues = clues
 		self.rows = self.build_rows()
 		self.cols = self.build_cols(self.rows)
 		self.regions = self.build_regions(self.rows)
@@ -32,7 +32,8 @@ class SudokuGrid():
 		self.coord_dict = self.build_coord_dict(self.coordregs, self.regions)
 		self.pop_valid_board()
 		self.result = self.rows
-		self.build_puzzle(self.result, emptycells=self.emptycells)
+
+		self.puzzle = self.propose_puzzle(self.result, self.clues)
 
 	def build_rows(self, defval=' ', args=[], kwargs={}):
 		'''
@@ -74,7 +75,7 @@ class SudokuGrid():
 					x += 3
 		return reglist
 
-	def build_coords(self, rows): 
+	def build_coords(self, rows, organize_by_rows=False): 
 		'''
 		Replaces the values populated on the grid by their coordinates. Returns a list of rows containing tuple pairs..
 		'''
@@ -90,8 +91,11 @@ class SudokuGrid():
 				newtuple = irow, icol
 				rowscopy[rowscopy.index(row)][row.index(item)] = newtuple
 		
+		
 		coordregs = self.build_regions(rowscopy)
-
+		if organize_by_rows:
+			coordregs = rowscopy
+		
 		return coordregs
 
 	def printable_coords(self): 
@@ -127,7 +131,6 @@ class SudokuGrid():
 			coord_dict_reglist.append(d)
 		return coord_dict_reglist
 
-
 	def print_grid(self, rows):
 		'''
 		Pretty prints the grid using a list of rows.
@@ -151,13 +154,13 @@ class SudokuGrid():
 		'''
 		if val == 'rand':
 			rows = self.build_rows(defval=randint,args=[1,9])
-			self.print_grid(rows)
+			#self.print_grid(rows)
 		elif val == 'clear' or not val:
 			rows = self.build_rows(defval=' ')
-			self.print_grid(rows)
+			#self.print_grid(rows)
 		else:
 			rows = self.build_rows(defval=val)
-			self.print_grid(rows)
+			#self.print_grid(rows)
 		return rows
 
 	def pop_valid_board(self, first_time=True, last_valid_region=0):
@@ -177,7 +180,7 @@ class SudokuGrid():
 						self.coord_dict = self.build_coord_dict(self.coordregs, self.regions)
 				
 			for r, c in dic.keys():
-				valids = [number for number in range(1,self.width*3+1)]
+				valids = [number for number in range(1,self.width*3+1) if number not in (self.rows[r]+self.cols[c]+self.regions[i])]
 				while True:
 					try:
 						n = choice(valids)
@@ -194,132 +197,107 @@ class SudokuGrid():
 						self.coordregs = self.build_coords(self.rows)
 						self.coord_dict = self.build_coord_dict(self.coordregs, self.regions)
 						break
+	
+	
 
-	def remove_randcell(self, rows, howmany=1): 
-		newrows = deepcopy(rows)
-		for i in range(howmany):
-			while True:
-				r = randint(0,8)
-				c = randint(0,8)
-				if newrows[r][c] == ' ':
-					continue
-				else:
-					newrows[r][c] = ' '
-					break
-		return newrows
+	def propose_puzzle(self, prows, clues = 17): #the minimum squares necessary for a unique solution
+		puzzle = self.populate_grid()
+		while sum(x.count(' ') for x in puzzle) > (81-clues): 
+			r = randint(0,8)
+			c = randint(0,8)
+			puzzle[r][c] = prows[r][c]
+		return puzzle
 
-	def solve(self, rows, solutions=[], tries=0, backtracks=0):
-		rowscopy = deepcopy(rows)
-		colscopy = self.build_cols(rows)
-		regionscopy = self.build_regions(rows)
-		coordregscopy = self.build_coords(rows)
-		coord_dictcopy = self.build_coord_dict(coordregscopy, regionscopy)
-		correct_cells = solutions # list of solutions.
-		correct_cells.append({}) 
-		numbers_found = 0
-
+	def constraint_solve(self, puzzle, times=0):
+		prows = deepcopy(puzzle)
+		pcols = self.build_cols(prows)
+		pregions = self.build_regions(prows)
 		
-		
-		if backtracks:
-			correct_cells.pop()
-			backtracks = min(len(correct_cells[tries]),1)
-			for r, c in list(correct_cells[tries].keys())[-backtracks:]:
-				rowscopy[r][c] = ' '
-				colscopy = self.build_cols(rows)
-				regionscopy = self.build_regions(rows)
-				coordregscopy = self.build_coords(rows)
-				coord_dictcopy = self.build_coord_dict(coordregscopy, regionscopy)		
-				
-		for i, dic in enumerate(coord_dictcopy):
+		pcoordregs = self.build_coords(prows)
+		pcoord_dict = self.build_coord_dict(pcoordregs, pregions)
+		regpossibles = deepcopy(pcoord_dict)
+
+		pcrows = self.build_coords(prows, organize_by_rows=True)
+		pcdictrows = self.build_coord_dict(pcrows, prows)
+		rowspossibles = deepcopy(pcdictrows)
+
+		pccols = self.build_cols(self.build_coords(prows, organize_by_rows=True))
+		pcdictcols = self.build_coord_dict(pccols, pcols)
+		colspossibles = deepcopy(pcdictcols)
+
+		print(f'times: {times}')
+
+		for i, dic in enumerate(regpossibles):
 			for r, c in dic.keys():
-				if dic[r,c] != ' ':
+				if isinstance(dic[r,c], int):
+					continue 
+				dic[r,c] = [number for number in range(1,self.width*3+1) if number not in (prows[r]+pcols[c]+pregions[i]) and number not in dic]
+				rowspossibles[r][r,c] = dic[r,c]
+				colspossibles[c][r,c] = dic[r,c]
+		for i, dic in enumerate(regpossibles):
+			l = [item for sublist in dic.values() if isinstance(sublist, list) for item in sublist]
+			for i, (r, c) in enumerate(dic.keys()):
+				if isinstance(dic[r,c], int):
 					continue
-				valids = [number for number in range(1,self.width*3+1)]
+				if len(dic[r,c]) == 1:
+					rowspossibles[r][r,c] = dic[r,c][0]
+					colspossibles[c][r,c] = dic[r,c][0]					
+					dic[r,c] = dic[r,c][0]
+					prows[r][c] = dic[r,c]
+				if isinstance(dic[r,c], list):
+					for number in dic[r,c]:
+						if l.count(number) == 1:
+							dic[r,c] = number
+							rowspossibles[r][r,c] = number
+							colspossibles[c][r,c] = number
+							prows[r][c] = number
 
-				while True:
-					try:
-						n = choice(valids)
-					except IndexError:
-						try:
-							#print(f'line 227 - NO VALID NUMBERS, calling solve again. Length of inserted cells = {len(correct_cells[tries])//3}')
-							#correct_cells.pop() #Commented to test the backtracking
-							self.solve(rowscopy, solutions=correct_cells, tries=tries, backtracks=5) #added backtracks and rows->rowscopy for testing
-							return
-						except RecursionError:
-							#print(f"Recursion Error. Here's the best I could do:")
-							self.finish_this_already = True
-							return
-					if n in (rowscopy[r]+colscopy[c]+regionscopy[i]):
-						valids.remove(n)
-						continue
-					else:
-						numbers_found += 1
-						#print(f'line 235 - {numbers_found}th valid number found. tries={tries}')
-						rowscopy[r][c] = n
-						correct_cells[tries][r,c] = n
-						colscopy = self.build_cols(rowscopy)
-						regionscopy = self.build_regions(rowscopy)
-						coordregscopy = self.build_coords(rowscopy)
-						coord_dictcopy = self.build_coord_dict(coordregscopy, regionscopy)
-						break
-		if tries > 0:
-			if correct_cells[tries] == correct_cells[tries-1]: #weak check. its possible that the same solution is picked again even though there are others.
-				correct_cells.pop()
-				#print(f'line 245 - new solution found is same as last one (tries = {tries}. Back to build_puzzle')
-				return
-			else:
-				#print(f'line 249 - NEW UNIQUE SOLUTION (tries = {tries}! Back to build puzzle.')
-				return
-		#print(f'line 249 - solution found (tries={tries}). looking for more possible solutions')
-		self.solve(rows, solutions=correct_cells, tries=tries+1)
-		return 
+		#Now implement the next step: trying one possibility and see if it works.
 
-	def build_puzzle(self, rows, solutions=[], tries=0, emptycells=48):
-		if tries == 0:
-			newrows = self.remove_randcell(rows)
-		else:
-			newrows = rows
-		self.solve(newrows, solutions, tries)
-		no_of_solutions = len(solutions)
-		empty_cells = sum(r.count(' ') for r in newrows)
-		#print(f'line 262 - Empty_cells: {empty_cells}', f'no_of_solutions found: {no_of_solutions}')
-		if no_of_solutions > 1:
-			if empty_cells < emptycells:
-				#print(f'line 280 - less than ideal no of empty cells. Trying again.')
-				self.build_puzzle(self.puzzle, solutions=[], tries=0, emptycells=self.emptycells)
-				if self.finish_this_already:
-					return
-				return
-			else:
-				return
-		else:
-			self.solutions = solutions
-			self.puzzle = newrows
-			if empty_cells < emptycells:
-				#print('line 274 - REMOVING NEXT CELL')
-				self.build_puzzle(newrows, solutions=[], tries=0, emptycells=self.emptycells)
-			else:
-				return
+
+		while times < 10:
+			self.constraint_solve(prows, times=times+1)
+			break
+		if times == 10:
+			self.print_grid(prows)
+			for dic in regpossibles:
+				print(dic.values(), end='\n\n')
+			return prows
+
+				
+				
+
+			
 
 
 
 
+		'''
+		Next steps:				
+		1) Check if there is any cell with only one valid number 
+			a) Add it to the puzzle and recalculate possibles.
+			b) Save the board state in original var. Back to 1 until not possible.
+		2) Deepcopy original var. Iterate through board (maybe use printable_coords to build a dict to have a numberically ascending list of keys?)
+			a) Copy list of possibles of each cell (check if shallowcopy is needed to prevent modifying deepcopied var)
+			b) Try to add numbers, removing impossible ones from their list.
+			c) Keep doing this until IndexError.
+			d) IndexError handling: try to add a different possible number to cell-1. Use a variable to track from which index to take the number.
+				d1) If sucessful, continue until next IndexError and back to d.
+				d2) If still not possible, choose next possible number for cell-1.
+				d3) If cell-1 has no more possible numbers, IndexError. will backtrack to cell-2. Need a variable to track this, as cell-1 will have to be reset too.
+		'''
 
-
-
-
-
-
-
-
+	
 
 
 			
 
-t = SudokuGrid(emptycells=12)
+t = SudokuGrid(clues=35)
 
-t.print_grid(t.puzzle)
+
 t.print_grid(t.result)
+t.print_grid(t.puzzle)
+t.constraint_solve(t.puzzle)
 
 
 
