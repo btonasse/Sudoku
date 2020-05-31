@@ -34,7 +34,8 @@ class SudokuGrid():
 		self.result = self.rows
 
 		self.puzzle = self.propose_puzzle(self.result, self.clues)
-		self.solvestate, self.attempts, self.puzzlestate, self.printable = self.constraint_solve(self.puzzle)
+		self.printable = None
+		self.solvestate, self.attempts, self.puzzlestate = self.constraint_solve(self.puzzle)
 
 	def build_rows(self, defval=' ', args=[], kwargs={}):
 		'''
@@ -258,16 +259,17 @@ class SudokuGrid():
 		for sublist in printable:
 			for i, item in enumerate(sublist):
 				sublist[i] = item.replace(', ','').strip('[]')
-		printable = self.printable_possibles(printable)	
+		printable = self.printable_possibles(printable)
 
 		while True:
 			if prows == oldprows:
 				#print('Cannot solve further')
-				return 'INCOMPLETE', times, prows, printable
+				self.printable = printable
+				return 'INCOMPLETE', times, prows
 			for dic in regpossibles:
 				if any(cell == [] for cell in dic.values()):
 					#print('Contradiction found.')
-					return False, times, puzzle, False
+					return False, times, puzzle
 			for i, row in enumerate(prows):
 				if not all(type(cell) is int for cell in row):
 					break
@@ -277,7 +279,7 @@ class SudokuGrid():
 					else:
 						pass
 				#print('Puzzle solved')
-				return 'SOLVED', times, prows, False
+				return 'SOLVED', times, prows
 			break
 		
 		oldprows = prows
