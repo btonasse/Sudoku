@@ -7,19 +7,27 @@ class SudokuGrid():
 	Sudoku board.
 	Attributes:
 	width = size of the board - defaults to 3.
-	emptycells = With how many empty cells the program should try to generate the puzzle.
+	clues = how many clues should a proposed puzzle have
 	rows = List of 9 lists of 9 values. The root from which the grid is built.
 	cols = List of 9 lists of 9 values. Derived from rows.
 	regions = List of 9 lists of 9 values. Derived from rows.
 	coordregs = Same as above but stores the coordinates of each cell in tuple form.
 	coord_dict = Dictionary of coordinates (keys) and values.
 	result = the final resolved board
+	puzzle = a proposed puzzle
+	printable = list of possible numbers for each square in printable format
+	solvestate = current state of the solve attempt (SOLVED, INCOMPLETE or None)
+	prrop_attempts = current number of iterations the solver took so far. Helps determining level of puzzle.
+	puzzlestate = current state of the proposed puzzle during solving
+	possibles = dictionary of possible numbers for each square;
+	
 	Standalone methods:
 	print_grid(): Prints the grid to the console, taking the rows attribute as argument.
 	printable_coords(): Returns a list of rows where the values have been replaced by their coordinates
 		in symmetric fashion. Pass it to the method above to have a pretty grid of coordinates printed.
 	populate_grid(): Populates a grid with the argument passed- usually a character - and prints it. Returns a list of rows of identical contents.
 		Optionally accepts 'rand' to randomize the board (ignoring sudoku rules) or 'clear' to clear it.
+	#put the rest here
 	'''
 
 	def __init__(self, width=3, clues=35):
@@ -35,7 +43,8 @@ class SudokuGrid():
 
 		self.puzzle = self.propose_puzzle(self.result, self.clues)
 		self.printable = None
-		self.solvestate, self.attempts, self.puzzlestate = self.constraint_solve(self.puzzle)
+		self.exp_attempts = 0
+		self.solvestate, self.prop_attempts, self.puzzlestate, self.possibles = self.constraint_solve(self.puzzle)
 
 	def build_rows(self, defval=' ', args=[], kwargs={}):
 		'''
@@ -100,7 +109,8 @@ class SudokuGrid():
 
 	def printable_possibles(self, possibles): 
 		'''
-		blbalba
+		Formates the dictionary of possible numbers in a printable form
+		to be displayed with self.print_grid()
 		'''
 		max_len = 1
 		poscopy = deepcopy(possibles)
@@ -214,7 +224,11 @@ class SudokuGrid():
 						break
 		print('DONE.')
 	
-	def propose_puzzle(self, prows, clues = 17): #the minimum squares necessary for a unique solution
+	def propose_puzzle(self, prows, clues = 17): 
+		'''
+		Creates an empty board and populates it with x (x=self.clues) random values from the generated board.
+		17 is the minimum squares necessary for a puzzle to havea chance to be unique solution.
+		'''
 		print(f'Proposing a puzzle with {clues} clues...', end='')
 		puzzle = self.populate_grid()
 		while sum(x.count(' ') for x in puzzle) > (81-clues): 
@@ -225,6 +239,15 @@ class SudokuGrid():
 		return puzzle
 
 	def constraint_solve(self, puzzle, times=0, oldprows=[[]]):
+		'''
+		Tries to solve the puzzle using constraint propagation.
+		Returns the puzzle state (False if contradiction, SOLVED or INCOMPLETE),
+		the number of iterations performed and the puzzle state itself.
+		For INCOMPLETE puzzles, also populates self.printable with the rows of possible nuimbers
+		in printable form + the dictionary of possible values for each coordinate.
+		For failed puzzles, returns the original puzzle state before the solve attempts.
+		'''
+
 		prows = deepcopy(puzzle)
 		pcols = self.build_cols(prows)
 		pregions = self.build_regions(prows)
@@ -265,11 +288,11 @@ class SudokuGrid():
 			if prows == oldprows:
 				#print('Cannot solve further')
 				self.printable = printable
-				return 'INCOMPLETE', times, prows
+				return 'INCOMPLETE', times, prows, regpossibles
 			for dic in regpossibles:
 				if any(cell == [] for cell in dic.values()):
 					#print('Contradiction found.')
-					return False, times, puzzle
+					return False, times, puzzle, None
 			for i, row in enumerate(prows):
 				if not all(type(cell) is int for cell in row):
 					break
@@ -279,18 +302,34 @@ class SudokuGrid():
 					else:
 						pass
 				#print('Puzzle solved')
-				return 'SOLVED', times, prows
+				return 'SOLVED', times, prows, None
 			break
 		
 		oldprows = prows
 		return self.constraint_solve(prows, times=times+1, oldprows=prows)
 		
 
-	#attempts will be used to determine level of the puzzle			
 	
-	#Now implement the next step: trying one possibility and see if it works.	
+	
 
-	#Do a version of printable_coords for regpossibles so the return 'incomplete' returns it and can be used by next function	
+	def experiment_solve(self, puzzle, possibles, int_times=0):
+		puzcopy = deepcopy(puzzle)
+		possiblescopy = deepcopy(possibles)
+		guessed = False
+		int_times += 1
+		for i, dic in enumerate(possiblescopy):
+			if guessed:
+				break
+			for r,c in dic.keys():
+				if type(dic[r,c]) is list and len(dic[r,c]) == int_times+1:
+					puzcopy[r][c] = dic[r,c][0]
+					guessed = True
+					break
+		if not guessed: #means there were no lists of int_times+1 length
+			return self.experiment_solve(puzzle, possibles, int_times)
+		
+		self.exp_attempts += int_times
+		return self.constraint_solve(puzcopy, self.prop_attempts) #see later how to differentiate times experimenting and times constraint solving
 
 			
 
@@ -303,13 +342,39 @@ print('')
 print('-----Proposed puzzle----')
 t.print_grid(t.puzzle)
 print('')
-print('------Puzzle state------', f'Constraint propagation attempts: {t.attempts}', f'Solve state: {t.solvestate}', sep='\n')
+print('------Puzzle state------', f'Constraint propagation attempts: {t.prop_attempts}', f'Solve state: {t.solvestate}', sep='\n')
 t.print_grid(t.puzzlestate)
 print('')
 if t.printable:
 	print('-----Possible numbers----')
 	t.print_grid(t.printable)
+print('\n\n')
+
+while t.solvestate == 'INCOMPLETE':
+	t.solvestate, t.prop_attempts, t.puzzlestate, t.possibles = t.experiment_solve(t.puzzlestate, t.possibles)
+	print('------New puzzle state------', f'Total constraint propagation attempts: {t.prop_attempts}', f'Experimentation attemps: {t.exp_attempts}', f'Solve state: {t.solvestate}', sep='\n')
+	t.print_grid(t.puzzlestate)
+	print('')
+	if t.printable:
+		print('-----Possible numbers----')
+		t.print_grid(t.printable)
+		print('\n\n')
+
+if t.solvestate == False: #Needs to implement the backtracking
+	pass 
+
+print('------Comparing result with solution found------')
+print('------Result------')
+t.print_grid(t.result)
 print('')
+print('------Solution found------', f'Total constraint propagation attempts: {t.prop_attempts}', f'Experimentation attemps: {t.exp_attempts}', f'Solve state: {t.solvestate}', sep='\n')
+t.print_grid(t.puzzlestate)
+print('')
+if t.result == t.puzzlestate:
+	print('Solution == result!') #Needs to check a few times more with other possibilities to make sure
+else:
+	print('Puzzle has no unique solution. Boo.') #Needs to generate a new puzzle from here.
+
 
 
 
