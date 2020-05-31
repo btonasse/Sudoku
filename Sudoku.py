@@ -34,7 +34,7 @@ class SudokuGrid():
 		self.result = self.rows
 
 		self.puzzle = self.propose_puzzle(self.result, self.clues)
-		self.solvestate, self.attempts, self.puzzlestate = self.constraint_solve(self.puzzle)
+		self.solvestate, self.attempts, self.puzzlestate, self.printable = self.constraint_solve(self.puzzle)
 
 	def build_rows(self, defval=' ', args=[], kwargs={}):
 		'''
@@ -96,6 +96,22 @@ class SudokuGrid():
 		coordregs = self.build_regions(rowscopy)
 		
 		return coordregs
+
+	def printable_possibles(self, possibles): 
+		'''
+		blbalba
+		'''
+		max_len = 1
+		poscopy = deepcopy(possibles)
+		for row in poscopy:
+			for cell in row:
+				max_len = max(max_len, len(cell))
+		for I, row in enumerate(poscopy):
+			for i, cell in enumerate(row):
+				while len(cell) < max_len:
+					cell = ' ' + cell
+					poscopy[I][i] = cell
+		return poscopy
 
 	def printable_coords(self): 
 		'''
@@ -164,8 +180,7 @@ class SudokuGrid():
 
 	def pop_valid_board(self, first_time=True, last_valid_region=0):
 		if first_time:
-			print('Generating a valid board...')
-			#self.populate_grid('')
+			print(f'Generating a valid board...', end='')
 		for i, dic in enumerate(self.coord_dict):
 			if i < last_valid_region:
 				continue
@@ -196,13 +211,16 @@ class SudokuGrid():
 						self.coordregs = self.build_coords(self.rows)
 						self.coord_dict = self.build_coord_dict(self.coordregs, self.regions)
 						break
+		print('DONE.')
 	
 	def propose_puzzle(self, prows, clues = 17): #the minimum squares necessary for a unique solution
+		print(f'Proposing a puzzle with {clues} clues...', end='')
 		puzzle = self.populate_grid()
 		while sum(x.count(' ') for x in puzzle) > (81-clues): 
 			r = randint(0,8)
 			c = randint(0,8)
 			puzzle[r][c] = prows[r][c]
+		print('DONE.')
 		return puzzle
 
 	def constraint_solve(self, puzzle, times=0, oldprows=[[]]):
@@ -235,15 +253,21 @@ class SudokuGrid():
 						if l.count(number) == 1:
 							dic[r,c] = number
 							prows[r][c] = number
-	
+		
+		printable = [[str(value) for value in dic.values()] for dic in regpossibles]
+		for sublist in printable:
+			for i, item in enumerate(sublist):
+				sublist[i] = item.replace(', ','').strip('[]')
+		printable = self.printable_possibles(printable)	
+
 		while True:
 			if prows == oldprows:
 				#print('Cannot solve further')
-				return 'incomplete', times, prows
+				return 'INCOMPLETE', times, prows, printable
 			for dic in regpossibles:
 				if any(cell == [] for cell in dic.values()):
 					#print('Contradiction found.')
-					return False, times, puzzle
+					return False, times, puzzle, False
 			for i, row in enumerate(prows):
 				if not all(type(cell) is int for cell in row):
 					break
@@ -253,28 +277,37 @@ class SudokuGrid():
 					else:
 						pass
 				#print('Puzzle solved')
-				return 'solved', times, prows
+				return 'SOLVED', times, prows, False
 			break
 		
 		oldprows = prows
 		return self.constraint_solve(prows, times=times+1, oldprows=prows)
 		
 
-				
-	#Now implement the next step: trying one possibility and see if it works.		
+	#attempts will be used to determine level of the puzzle			
+	
+	#Now implement the next step: trying one possibility and see if it works.	
+
+	#Do a version of printable_coords for regpossibles so the return 'incomplete' returns it and can be used by next function	
 
 			
 
 t = SudokuGrid(clues=35)
 
-print('Final result:')
+print('')
+print('------Final result------')
 t.print_grid(t.result)
-print('Proposed puzzle:')
+print('')
+print('-----Proposed puzzle----')
 t.print_grid(t.puzzle)
-print('Puzzle solve state:', f'Attempts: {t.attempts}', f'Solve state: {t.solvestate}', sep='\n')
+print('')
+print('------Puzzle state------', f'Constraint propagation attempts: {t.attempts}', f'Solve state: {t.solvestate}', sep='\n')
 t.print_grid(t.puzzlestate)
-
-
+print('')
+if t.printable:
+	print('-----Possible numbers----')
+	t.print_grid(t.printable)
+print('')
 
 
 
