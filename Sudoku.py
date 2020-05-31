@@ -114,6 +114,7 @@ class SudokuGrid():
 		'''
 		max_len = 1
 		poscopy = deepcopy(possibles)
+		
 		for row in poscopy:
 			for cell in row:
 				max_len = max(max_len, len(cell))
@@ -278,7 +279,14 @@ class SudokuGrid():
 							dic[r,c] = number
 							prows[r][c] = number
 		
-		printable = [[str(value) for value in dic.values()] for dic in regpossibles]
+
+		printableregs = [[str(value) for value in dic.values()] for dic in regpossibles]
+		printable = [[] for x in range(9)]
+		for I in range(0,9,3):
+			for reg in printableregs[I:I+3]:
+				printable[I].extend(reg[0:3])
+				printable[I+1].extend(reg[3:6])
+				printable[I+2].extend(reg[6:9])
 		for sublist in printable:
 			for i, item in enumerate(sublist):
 				sublist[i] = item.replace(', ','').strip('[]')
@@ -345,7 +353,7 @@ print('')
 print('------Puzzle state------', f'Constraint propagation attempts: {t.prop_attempts}', f'Solve state: {t.solvestate}', sep='\n')
 t.print_grid(t.puzzlestate)
 print('')
-if t.printable:
+if t.solvestate == 'INCOMPLETE':
 	print('-----Possible numbers----')
 	t.print_grid(t.printable)
 print('\n\n')
@@ -355,7 +363,7 @@ while t.solvestate == 'INCOMPLETE':
 	print('------New puzzle state------', f'Total constraint propagation attempts: {t.prop_attempts}', f'Experimentation attemps: {t.exp_attempts}', f'Solve state: {t.solvestate}', sep='\n')
 	t.print_grid(t.puzzlestate)
 	print('')
-	if t.printable:
+	if t.solvestate == 'INCOMPLETE':
 		print('-----Possible numbers----')
 		t.print_grid(t.printable)
 		print('\n\n')
