@@ -344,6 +344,12 @@ class SudokuGrid():
 		puzzlestring = puzzlestring.replace('.',' ')
 		for i in range(0,81,9):
 			puzzle.append([char for char in puzzlestring[i:i+9]])
+		for row in puzzle:
+			for i, cell in enumerate(row):
+				try:
+					row[i] = int(cell)
+				except:
+					pass
 		return puzzle
 			
 
