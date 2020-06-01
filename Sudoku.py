@@ -339,6 +339,12 @@ class SudokuGrid():
 		self.exp_attempts += int_times
 		return self.constraint_solve(puzcopy, self.prop_attempts) #see later how to differentiate times experimenting and times constraint solving
 
+	def parse_puzzle(self, puzzlestring):
+		puzzle = []
+		puzzlestring = puzzlestring.replace('.',' ')
+		for i in range(0,81,9):
+			puzzle.append([char for char in puzzlestring[i:i+9]])
+		return puzzle
 			
 
 t = SudokuGrid(clues=35)
