@@ -342,6 +342,7 @@ class SudokuGrid():
 	def parse_puzzle(self, puzzlestring):
 		puzzle = []
 		puzzlestring = puzzlestring.replace('.',' ')
+		puzzlestring = puzzlestring.replace('0',' ')
 		for i in range(0,81,9):
 			puzzle.append([char for char in puzzlestring[i:i+9]])
 		for row in puzzle:
