@@ -30,21 +30,12 @@ class SudokuGrid():
 	#put the rest here
 	'''
 
-	def __init__(self, width=3, clues=35):
+	def __init__(self, width=3, clues=17):
 		self.width = width
 		self.clues = clues
-		self.rows = self.build_rows()
-		self.cols = self.build_cols(self.rows)
-		self.regions = self.build_regions(self.rows)
-		self.coordregs = self.build_coords(self.rows)
-		self.coord_dict = self.build_coord_dict(self.coordregs, self.regions)
-		self.pop_valid_board()
-		self.result = self.rows
+		self.rows, self.cols, self.regions,	self.coordregs, self.coord_dict, self.result = 0,0,0,0,0,0 #vars necessary for building a new valid board
 
-		self.puzzle = self.propose_puzzle(self.result, self.clues)
-		self.printable = None
-		self.exp_attempts = 0
-		self.solvestate, self.prop_attempts, self.puzzlestate, self.possibles = self.constraint_solve(self.puzzle)
+		self.solvestate, self.prop_attempts, self.puzzlestate, self.possibles, self.puzzle, self.printable, self.exp_attempts = 0, 0, 0, 0, 0, 0, 0 #variables necessary for solving a puzzle
 
 	def build_rows(self, defval=' ', args=[], kwargs={}):
 		'''
@@ -225,19 +216,7 @@ class SudokuGrid():
 						break
 		print('DONE.')
 	
-	def propose_puzzle(self, prows, clues = 17): 
-		'''
-		Creates an empty board and populates it with x (x=self.clues) random values from the generated board.
-		17 is the minimum squares necessary for a puzzle to havea chance to be unique solution.
-		'''
-		print(f'Proposing a puzzle with {clues} clues...', end='')
-		puzzle = self.populate_grid()
-		while sum(x.count(' ') for x in puzzle) > (81-clues): 
-			r = randint(0,8)
-			c = randint(0,8)
-			puzzle[r][c] = prows[r][c]
-		print('DONE.')
-		return puzzle
+
 
 	def constraint_solve(self, puzzle, times=0, oldprows=[[]]):
 		'''
@@ -265,6 +244,21 @@ class SudokuGrid():
 					continue 
 				dic[r,c] = [number for number in range(1,self.width*3+1) if number not in (prows[r]+pcols[c]+pregions[i]) and number not in dic]
 
+		regsaslist = [[value for value in dic.values()] for dic in regpossibles] #reorganize list of possibles by rows. Not sure it is needed or useful.
+		rpossibles = [[] for x in range(9)]
+		for I in range(0,9,3):
+			for reg in regsaslist[I:I+3]:
+				rpossibles[I].extend(reg[0:3])
+				rpossibles[I+1].extend(reg[3:6])
+				rpossibles[I+2].extend(reg[6:9])
+		cpossibles = self.build_cols(rpossibles)
+		rl, cl = [], []
+		for dic in rpossibles:
+			rl.append([item for sublist in dic if isinstance(sublist, list) for item in sublist])
+		for dic in cpossibles:
+			cl.append([item for sublist in dic if isinstance(sublist, list) for item in sublist])
+		
+
 		for dic in regpossibles:
 			l = [item for sublist in dic.values() if isinstance(sublist, list) for item in sublist]
 			for r, c in dic.keys():
@@ -275,7 +269,7 @@ class SudokuGrid():
 					prows[r][c] = dic[r,c]
 				if isinstance(dic[r,c], list):
 					for number in dic[r,c]:
-						if l.count(number) == 1:
+						if l.count(number) == 1 or rl[r].count(number) == 1 or cl[c].count(number) == 1:
 							dic[r,c] = number
 							prows[r][c] = number
 		
@@ -292,34 +286,28 @@ class SudokuGrid():
 				sublist[i] = item.replace(', ','').strip('[]')
 		printable = self.printable_possibles(printable)
 
-		while True:
-			if prows == oldprows:
-				#print('Cannot solve further')
-				self.printable = printable
-				return 'INCOMPLETE', times, prows, regpossibles
-			for dic in regpossibles:
-				if any(cell == [] for cell in dic.values()):
-					#print('Contradiction found.')
-					return False, times, puzzle, None
-			for i, row in enumerate(prows):
-				if not all(type(cell) is int for cell in row):
-					break
-				else:
-					if i < 8:
-						continue
-					else:
-						pass
-				#print('Puzzle solved')
-				return 'SOLVED', times, prows, None
-			break
 		
-		oldprows = prows
+		if prows == oldprows:
+			#print('Cannot solve further')
+			self.printable = printable
+			return 'INCOMPLETE', times, prows, regpossibles
+		for dic in regpossibles:
+			if any(cell == [] for cell in dic.values()):
+				#print('Contradiction found.')
+				return False, times, puzzle, None
+		for i, row in enumerate(prows):
+			if not all(type(cell) is int for cell in row):
+				break
+			else:
+				if i < 8:
+					continue
+				else:
+					pass
+			#print('Puzzle solved')
+			return 'SOLVED', times, prows, None
+			
 		return self.constraint_solve(prows, times=times+1, oldprows=prows)
 		
-
-	
-	
-
 	def experiment_solve(self, puzzle, possibles, int_times=0):
 		puzcopy = deepcopy(puzzle)
 		possiblescopy = deepcopy(possibles)
@@ -352,70 +340,68 @@ class SudokuGrid():
 				except:
 					pass
 		return puzzle
+
+	def generate_result(self):
+		self.rows = self.build_rows()
+		self.cols = self.build_cols(self.rows)
+		self.regions = self.build_regions(self.rows)
+		self.coordregs = self.build_coords(self.rows)
+		self.coord_dict = self.build_coord_dict(self.coordregs, self.regions)
+		self.pop_valid_board()
+		self.result = self.rows
+		return self.result
+
+	def propose_puzzle(self): 
+		'''
+		Creates an empty board and populates it with x (x=self.clues) random values from the generated board.
+		17 is the minimum squares necessary for a puzzle to havea chance to be unique solution.
+		'''
+		print(f'Proposing a puzzle with {self.clues} clues...', end='')
+		puzzle = self.populate_grid()
+		while sum(x.count(' ') for x in puzzle) > (81-self.clues): 
+			r = randint(0,8)
+			c = randint(0,8)
+			puzzle[r][c] = self.result[r][c]
+		print('DONE.')
+		return puzzle
+
+	def master_solve(self):
+		self.solvestate, self.prop_attempts, self.puzzlestate, self.possibles = self.constraint_solve(self.puzzle)
+		#print('')
+		#print('------Final result------')
+		#self.print_grid(self.result)
+		#print('')
+		print('-----Proposed puzzle----')
+		self.print_grid(self.puzzle)
+		print('')
+		print('------Puzzle state------', f'Constraint propagation steps: {self.prop_attempts}', f'Solve state: {self.solvestate}', sep='\n')
+		self.print_grid(self.puzzlestate)
+		print('')
+		if self.solvestate == 'INCOMPLETE':
+			print('-----Possible numbers----')
+			self.print_grid(self.printable)
+		print('\n\n')
+
+
+		if self.solvestate == False: #Needs to implement the backtracking
+			pass 
+
+		if self.solvestate == 'SOLVED':
+			print('------Comparing result with solution found------')
+			print('------Result------')
+			self.print_grid(self.result)
+			print('')
+			print('------Solution found------', f'Total constraint propagation attempts: {self.prop_attempts}', f'Experimentation attemps: {self.exp_attempts}', f'Solve state: {self.solvestate}', sep='\n')
+			self.print_grid(self.puzzlestate)
+			print('')
+			if self.result == self.puzzlestate:
+				print('Solution == result!') #Needs to check a few times more with other possibilities to make sure
+			else:
+				print('Puzzle has no unique solution. Boo.') #Needs to generate a new puzzle from here.		
 			
 
 t = SudokuGrid(clues=35)
-
-print('')
-print('------Final result------')
-t.print_grid(t.result)
-print('')
-print('-----Proposed puzzle----')
-t.print_grid(t.puzzle)
-print('')
-print('------Puzzle state------', f'Constraint propagation attempts: {t.prop_attempts}', f'Solve state: {t.solvestate}', sep='\n')
-t.print_grid(t.puzzlestate)
-print('')
-if t.solvestate == 'INCOMPLETE':
-	print('-----Possible numbers----')
-	t.print_grid(t.printable)
-print('\n\n')
-
-while t.solvestate == 'INCOMPLETE':
-	t.solvestate, t.prop_attempts, t.puzzlestate, t.possibles = t.experiment_solve(t.puzzlestate, t.possibles)
-	print('------New puzzle state------', f'Total constraint propagation attempts: {t.prop_attempts}', f'Experimentation attemps: {t.exp_attempts}', f'Solve state: {t.solvestate}', sep='\n')
-	t.print_grid(t.puzzlestate)
-	print('')
-	if t.solvestate == 'INCOMPLETE':
-		print('-----Possible numbers----')
-		t.print_grid(t.printable)
-		print('\n\n')
-
-if t.solvestate == False: #Needs to implement the backtracking
-	pass 
-
-print('------Comparing result with solution found------')
-print('------Result------')
-t.print_grid(t.result)
-print('')
-print('------Solution found------', f'Total constraint propagation attempts: {t.prop_attempts}', f'Experimentation attemps: {t.exp_attempts}', f'Solve state: {t.solvestate}', sep='\n')
-t.print_grid(t.puzzlestate)
-print('')
-if t.result == t.puzzlestate:
-	print('Solution == result!') #Needs to check a few times more with other possibilities to make sure
-else:
-	print('Puzzle has no unique solution. Boo.') #Needs to generate a new puzzle from here.
-
-
-
-
-
-
-
-
-
-
-
-
-	
-
-
-
-
-
-
-
-
-
-
-
+t.result = t.generate_result()
+t.puzzle = t.propose_puzzle()
+t.puzzle = t.parse_puzzle('4.....8.5.3..........7......2.....6.....8.4......1.......6.3.7.5..2.....1.4......')
+t.master_solve()
