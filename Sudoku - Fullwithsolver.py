@@ -354,7 +354,7 @@ class SudokuGrid():
 		
 		if not any([any([cell == ' ' for cell in row]) for row in puzzle]): #Checking if puzzle solved
 			#print('SOLVED!')
-			#self.solvedpuzzle = puzzle
+			self.solvedpuzzle = puzzle
 			#self.print_grid(puzzle)
 			#print('*')
 			#input('Hit Enter to close')
@@ -365,13 +365,13 @@ class SudokuGrid():
 			#self.print_grid(self.printable_possibles(rp))
 			#print('*')
 			return 'INCOMPLETE', puzzle
-		else:
+		#else:
 			#print('Puzzle still incomplete:')
 			#self.print_grid(puzzle)
 			#self.print_grid(self.printable_possibles(rp))
 			#print('Trying one more propagation step...', end='\n\n')
 			#input('More?')
-			return self.constraint_prop(puzzle, oldrows=puzzle)
+		return self.constraint_prop(puzzle, oldrows=deepcopy(puzzle))
 
 	def experiment(self, puzzle):
 		rp, rpf, cpf, regpf = self.gen_possibles(puzzle)
@@ -422,7 +422,7 @@ input('Enter to close')
 
 t.parse_puzzle('85...24..72......9..4.........1.7..23.5...9...4...........8..7..17..........36.4.')
 t.solve_test()
-
+input('Close?')
 
 
 
