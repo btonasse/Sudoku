@@ -267,6 +267,7 @@ class SudokuGrid():
 		Parses sudoku notation into a processable puzzle format
 		Easy puzzle: '003020600900305001001806400008102900700000008006708200002609500800203009005010300'
 		Hard: '85...24..72......9..4.........1.7..23.5...9...4...........8..7..17..........36.4.'
+		Another hard: '..53.....8......2..7..1.5..4....53...1..7...6..32...8..6.5....9..4....3......97..'
 		'''
 		puzzle = []
 		puzzlestring = puzzlestring.replace('.',' ')
@@ -374,6 +375,8 @@ class SudokuGrid():
 		return self.constraint_prop(puzzle, oldrows=deepcopy(puzzle))
 
 	def experiment(self, puzzle):
+		if self.solvedpuzzle:
+			return self.solvedpuzzle		
 		rp, rpf, cpf, regpf = self.gen_possibles(puzzle)
 		for i, row in enumerate(puzzle):
 			for I, col in enumerate(row):
@@ -420,7 +423,7 @@ t.print_grid(t.puzzle)
 input('Enter to close')
 '''
 
-t.parse_puzzle('85...24..72......9..4.........1.7..23.5...9...4...........8..7..17..........36.4.')
+t.parse_puzzle('..53.....8......2..7..1.5..4....53...1..7...6..32...8..6.5....9..4....3......97..')
 t.solve_test()
 input('Close?')
 
