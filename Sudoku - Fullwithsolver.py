@@ -396,7 +396,16 @@ class SudokuGrid():
 					return
 
 
-	def solve_test(self):
+	def solve_puzzle(self):
+		while True:
+			puzzlestring = input('Enter a Sudoku puzzle.\nDefault: 85...24..72......9..4.........1.7..23.5...9...4...........8..7..17..........36.4.\n')
+			if not puzzlestring:
+				puzzlestring = '85...24..72......9..4.........1.7..23.5...9...4...........8..7..17..........36.4.'
+			if len(puzzlestring) == 81 and all(char in '0123456789.' for char in puzzlestring):
+				self.parse_puzzle(puzzlestring)
+				break
+			else:
+				print('Please enter a valid puzzle in Sudoku notation (dots or zeros for empty squares)')		
 		print('Puzzle:')
 		self.print_grid(self.puzzle)
 		print('')
@@ -423,8 +432,8 @@ t.print_grid(t.puzzle)
 input('Enter to close')
 '''
 
-t.parse_puzzle('..53.....8......2..7..1.5..4....53...1..7...6..32...8..6.5....9..4....3......97..')
-t.solve_test()
+
+t.solve_puzzle()
 input('Close?')
 
 
