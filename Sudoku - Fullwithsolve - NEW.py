@@ -1,4 +1,4 @@
-from random import randint, choice, shuffle
+from random import shuffle
 from copy import deepcopy
 
 
