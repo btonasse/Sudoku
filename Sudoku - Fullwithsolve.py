@@ -239,6 +239,9 @@ class SudokuGrid():
 				input(f'Solved with guessing after {self.exp_steps} steps! Hit Enter to close.')
 
 	def gen_valid_board(self):
+		'''
+		Generates a random valid Sudoku board. Populates self.result with the result.
+		'''
 		print('Generating a valid Sudoku grid...')
 		board = [[' ' for i in range(9)] for i in range(9)]
 		result = self.experiment(board, shuff=True)
@@ -246,7 +249,7 @@ class SudokuGrid():
 		self.print_grid(result)
 		self.result = deepcopy(result)
 		return result
-	'''
+	
 	def remove_square(self, result): 
 		puzzle = deepcopy(result)
 		while True:
@@ -257,10 +260,16 @@ class SudokuGrid():
 			puzzle[r][c] = ' '
 			break
 		return puzzle
-	'''		
-	def check_uniqueness(self):
+	
+	def check_uniqueness(self, targettries=100, breakifmult=True):
+		'''
+		Similar to solve_puzzle(), but tries to check if puzzle has multiple solutions.
+		By default returns False as soon as a second solution is found. If breakifmulti=False,
+		it will iterate until the target no of tries is reached and print all found solutions.
+		To have better chances of finding all solutions, a high enough target is recommended.
+		'''
 		solutions = []
-		tries = 500
+		tries = 0
 		while True:
 			puzzlestring = input('Enter a Sudoku puzzle.\nDefault: 85...24..72......9..4.........1.7..23.5...9...4...........8..7..17..........36.4.\n')
 			if not puzzlestring:
@@ -280,7 +289,7 @@ class SudokuGrid():
 			return True
 		else:
 			print('Looking for solutions...')
-			while tries > 0:
+			while tries < targettries:
 				self.exp_steps = 0
 				afterexp = self.experiment(deepcopy(result), shuff=True)
 				if not afterexp:
@@ -289,11 +298,17 @@ class SudokuGrid():
 				else:
 					#self.print_grid(afterexp)
 					#print(f'Solved with guessing after {self.exp_steps} steps! Looking for more solutions...')
+					if breakifmult:
+						if len(solutions) == 1 and afterexp not in solutions:
+							input('More than one solution found. Hit Enter to close.')
+							return False
 					if afterexp not in solutions:
 						solutions.append(afterexp)
-					tries -= 1
+					tries += 1
 			if len(solutions) == 1:
-				input('One solution found after 500 tries. Puzzle probably unique')
+				print(f'One solution found after {tries} tries. Puzzle probably unique.')
+				self.print_grid(afterexp)
+				input('Press Enter to close')
 				return True
 			else:
 				input(f'{len(solutions)} solutions found. Puzzle not unique. Press Enter to see solutions.')
