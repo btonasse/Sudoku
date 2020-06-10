@@ -261,7 +261,7 @@ class SudokuGrid():
 			break
 		return puzzle
 	
-	def check_uniqueness(self, providedpuz=False, targettries=100, breakifmult=True):
+	def check_uniqueness(self, targettries=100, breakifmult=True):
 		'''
 		Similar to solve_puzzle(), but tries to check if puzzle has multiple solutions.
 		By default returns False as soon as a second solution is found. If breakifmulti=False,
