@@ -251,6 +251,9 @@ class SudokuGrid():
 		return result
 	
 	def remove_square(self, result): 
+		'''
+		Removes a random square from a board. Useful when generating puzzles.
+		'''
 		puzzle = deepcopy(result)
 		while True:
 			r = randint(0,8)
@@ -262,6 +265,9 @@ class SudokuGrid():
 		return puzzle
 
 	def propose_puzzle(self):
+		'''
+		Looks for a valid unique puzzle with the specified number of clues.
+		'''
 		toremove = 81-self.clues
 		res = self.gen_valid_board()
 		print(f'Looking for a unique puzzle with {self.clues} clues...')
@@ -350,24 +356,41 @@ class SudokuGrid():
 
 		
 
+if __name__ == '__main__':
+	print('***Sudoku solver/generator by Bernardo Tonasse. v1.0***')
+	choice = None
+	while not choice or choice.lower() not in 'sfcgq':
+		choice = input('What would you like to do?\n \
+			[s]olve a specific puzzle?\n \
+			[f]ind all solutions to a puzzle?\n \
+			[c]heck if a puzzle has only one solution?\n \
+			[g]enerate a puzzle with a unique solution?\n \
+			[q]uit?\n')
+	if choice.lower() == 's':
+		print('[s]olve a specific puzzle...')
+		s = SudokuGrid()
+		s.solve_puzzle()
+	elif choice.lower() == 'f':
+		print('[f]ind all solutions to a puzzle (up to 100)...')
+		f = SudokuGrid()
+		f.check_uniqueness(breakifmult=False)
+	elif choice.lower() == 'c':
+		print('[c]heck if a puzzle has only one solution...')
+		c = SudokuGrid()
+		c.check_uniqueness()
+	elif choice.lower() == 'g':
+		print('[g]enerate a puzzle with a unique solution...')
+		g = SudokuGrid()
+		answer = None
+		while not type(answer) is int or answer < 17 or answer > 81:
+			answer = input('How many clues should the puzzle have? [Enter an int between 17 and 81]')
+			try: answer = int(answer)
+			except: pass
+		g.clues = answer
+		g.propose_puzzle()
 
 
 
-
-
-
-
-t = SudokuGrid(clues=30)
-
-
-
-t.propose_puzzle()
-t.check_uniqueness(givenpuz=t.puzzle)
-
-
-
-
-#t.solve_puzzle()
 input('Close?')
 
 
