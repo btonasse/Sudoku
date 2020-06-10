@@ -261,24 +261,26 @@ class SudokuGrid():
 			break
 		return puzzle
 	
-	def check_uniqueness(self, targettries=100, breakifmult=True):
+	def check_uniqueness(self, providedpuz=False, targettries=100, breakifmult=True):
 		'''
 		Similar to solve_puzzle(), but tries to check if puzzle has multiple solutions.
 		By default returns False as soon as a second solution is found. If breakifmulti=False,
 		it will iterate until the target no of tries is reached and print all found solutions.
 		To have better chances of finding all solutions, a high enough target is recommended.
+		If self.puzzle is non existant, a prompt will ask the user for a valid puzzle to check.
 		'''
 		solutions = []
 		tries = 0
-		while True:
-			puzzlestring = input('Enter a Sudoku puzzle.\nDefault: 85...24..72......9..4.........1.7..23.5...9...4...........8..7..17..........36.4.\n')
-			if not puzzlestring:
-				puzzlestring = '85...24..72......9..4.........1.7..23.5...9...4...........8..7..17..........36.4.'
-			if len(puzzlestring) == 81 and all(char in '0123456789.' for char in puzzlestring):
-				self.parse_puzzle(puzzlestring)
-				break
-			else:
-				print('Please enter a valid puzzle in Sudoku notation (dots or zeros for empty squares)')				
+		if not self.puzzle:
+			while True:
+				puzzlestring = input('Enter a Sudoku puzzle.\nDefault: 85...24..72......9..4.........1.7..23.5...9...4...........8..7..17..........36.4.\n')
+				if not puzzlestring:
+					puzzlestring = '85...24..72......9..4.........1.7..23.5...9...4...........8..7..17..........36.4.'
+				if len(puzzlestring) == 81 and all(char in '0123456789.' for char in puzzlestring):
+					self.parse_puzzle(puzzlestring)
+					break
+				else:
+					print('Please enter a valid puzzle in Sudoku notation (dots or zeros for empty squares)')				
 		print('Checking uniqueness of puzzle:')
 		self.print_grid(self.puzzle)
 		print('')
