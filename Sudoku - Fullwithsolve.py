@@ -260,18 +260,37 @@ class SudokuGrid():
 			puzzle[r][c] = ' '
 			break
 		return puzzle
+
+	def propose_puzzle(self):
+		toremove = 81-self.clues
+		res = self.gen_valid_board()
+		print(f'Looking for a unique puzzle with {self.clues} clues...')
+		while toremove > 0:
+			rescopy = deepcopy(res)
+			res = self.remove_square(res)
+			if self.check_uniqueness(givenpuz=res, hideprints=True):
+				toremove -= 1
+				continue
+			else:
+				res = deepcopy(rescopy)
+		print('Puzzle:')
+		self.print_grid(self.puzzle)
+		input('Success! Hit Enter to close.')
+		return res
 	
-	def check_uniqueness(self, targettries=100, breakifmult=True):
+	def check_uniqueness(self, givenpuz=None, targettries=100, breakifmult=True, hideprints=False):
 		'''
 		Similar to solve_puzzle(), but tries to check if puzzle has multiple solutions.
 		By default returns False as soon as a second solution is found. If breakifmulti=False,
 		it will iterate until the target no of tries is reached and print all found solutions.
 		To have better chances of finding all solutions, a high enough target is recommended.
 		If self.puzzle is non existant, a prompt will ask the user for a valid puzzle to check.
+		hideprints=True hides all the inputs and print steps. Useful if using the function for generating a valid puzzle.
 		'''
+		self.prop_steps = 0
 		solutions = []
 		tries = 0
-		if not self.puzzle:
+		if not givenpuz:
 			while True:
 				puzzlestring = input('Enter a Sudoku puzzle.\nDefault: 85...24..72......9..4.........1.7..23.5...9...4...........8..7..17..........36.4.\n')
 				if not puzzlestring:
@@ -281,42 +300,51 @@ class SudokuGrid():
 					break
 				else:
 					print('Please enter a valid puzzle in Sudoku notation (dots or zeros for empty squares)')				
-		print('Checking uniqueness of puzzle:')
-		self.print_grid(self.puzzle)
-		print('')
+		else:
+			self.puzzle = deepcopy(givenpuz)
+		if not hideprints:
+			print('Checking uniqueness of puzzle:')
+			self.print_grid(self.puzzle)
+			print('')
 		state, result = self.constraint_prop(deepcopy(self.puzzle))
 		if state == 'SOLVED':
-			self.print_grid(self.solvedpuzzle)
-			input(f'Solved with no need for guessing after {self.prop_steps} steps! Solution is unique. Hit Enter to close.')
+			if not hideprints:
+				self.print_grid(self.solvedpuzzle)
+				input(f'Solved with no need for guessing after {self.prop_steps} steps! Solution is unique. Hit Enter to close.')
 			return True
 		else:
-			print('Looking for solutions...')
+			if not hideprints:
+				print('Looking for solutions...')
 			while tries < targettries:
 				self.exp_steps = 0
 				afterexp = self.experiment(deepcopy(result), shuff=True)
 				if not afterexp:
-					input('Puzzle has no solution. Hit Enter to close.')
+					if not hideprints:
+						input('Puzzle has no solution. Hit Enter to close.')
 					break
 				else:
 					#self.print_grid(afterexp)
 					#print(f'Solved with guessing after {self.exp_steps} steps! Looking for more solutions...')
 					if breakifmult:
 						if len(solutions) == 1 and afterexp not in solutions:
-							input('More than one solution found. Hit Enter to close.')
+							if not hideprints:
+								input('More than one solution found. Hit Enter to close.')
 							return False
 					if afterexp not in solutions:
 						solutions.append(afterexp)
 					tries += 1
 			if len(solutions) == 1:
-				print(f'One solution found after {tries} tries. Puzzle probably unique.')
-				self.print_grid(afterexp)
-				input('Press Enter to close')
+				if not hideprints:
+					print(f'One solution found after {tries} tries. Puzzle probably unique.')
+					self.print_grid(afterexp)
+					input('Press Enter to close')
 				return True
 			else:
-				input(f'{len(solutions)} solutions found. Puzzle not unique. Press Enter to see solutions.')
-				for solution in solutions:
-					self.print_grid(solution)
-				input('Close?')
+				if not hideprints:
+					input(f'{len(solutions)} solutions found. Puzzle not unique. Press Enter to see solutions.')
+					for solution in solutions:
+						self.print_grid(solution)
+					input('Close?')
 				return False
 		
 
@@ -329,14 +357,13 @@ class SudokuGrid():
 
 
 
-t = SudokuGrid(clues=35)
+t = SudokuGrid(clues=30)
 
 
-t.check_uniqueness()
 
+t.propose_puzzle()
+t.check_uniqueness(givenpuz=t.puzzle)
 
-#t.gen_valid_board()
-#input('Enter to close')
 
 
 
