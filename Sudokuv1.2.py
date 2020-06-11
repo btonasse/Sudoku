@@ -296,7 +296,7 @@ class SudokuGrid():
 				res = deepcopy(rescopy)
 			if loops == 100:
 				print('Trying a new board...')
-				return self.propose_puzzle()
+				return self.propose_puzzle(tofile=tofile)
 			loops += 1
 		if not tofile:
 			print('Puzzle:')
