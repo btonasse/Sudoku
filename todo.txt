@@ -1,5 +1,5 @@
 
-add an icon (check pyinstaller?)
+
 Maybe a GUI?
 
 Jun 11th:
