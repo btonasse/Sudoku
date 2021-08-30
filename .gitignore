@@ -33,10 +33,6 @@ MANIFEST
 pip-log.txt
 pip-delete-this-directory.txt
 
-# Flask stuff:
-instance/
-.webassets-cache
-
 # Environments
 .env
 .venv
@@ -48,9 +44,6 @@ venv.bak/
 
 #Pipenv
 Pipfile.lock
-
-# Sublime
-*.sublime-workspace
 
 # Project specific
 todo.txt
