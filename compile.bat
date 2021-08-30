@@ -1,2 +1,2 @@
-pyinstaller --onefile --icon=sudoku.ico Sudoku_in_work.py
+pyinstaller --onefile --icon=sudoku.ico Sudoku.py
 pause

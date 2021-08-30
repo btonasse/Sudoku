@@ -3,7 +3,7 @@
 block_cipher = None
 
 
-a = Analysis(['Sudoku_in_work.py'],
+a = Analysis(['Sudoku.py'],
              pathex=['C:\\Users\\btonasse\\Desktop\\Python\\Sudoku'],
              binaries=[],
              datas=[],
@@ -23,7 +23,7 @@ exe = EXE(pyz,
           a.zipfiles,
           a.datas,
           [],
-          name='Sudoku_in_work',
+          name='Sudoku',
           debug=False,
           bootloader_ignore_signals=False,
           strip=False,
