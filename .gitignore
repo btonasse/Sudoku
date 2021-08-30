@@ -45,5 +45,8 @@ venv.bak/
 #Pipenv
 Pipfile.lock
 
+#Vscode
+.vscode
+
 # Project specific
 todo.txt
