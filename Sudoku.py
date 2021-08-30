@@ -1,12 +1,18 @@
 from random import shuffle, randint
+from copy import deepcopy
+
+class NoValidNumbers(ValueError):
+    '''
+    Error for when there are no valid numbers for a space
+    '''
 class Sudoku:
     '''
     Sudoku solver/generator. Uses a mixture of constraint propagation/backtracking to solve puzzles.
     # Todo usage
     '''
     def __init__(self) -> None:
-        self.puzzle = None
-        self.solution = None
+        self.puzzles = None
+        self.solutions = None
 
     def parse_puzzle(self, puzzle_string: str) -> list:
         '''
@@ -36,6 +42,7 @@ class Sudoku:
     def puzzle_to_string(self, puzzle: list) -> str:
         '''
         Builds a string representation of the Sudoku grid for pretty printing.
+        Replace 0's with whitespace.
         '''
         separator = '+-------+-------+-------+'
         output = [separator]
@@ -88,8 +95,8 @@ class Sudoku:
             return False
         # Check if number exists in region by:
         # 1) Transposing the puzzle to a list of regions
-        # 2) Determine where target space's coordinates in the 3x3 grid of regions
-        # 3) Determine to which index of the new list these coordinates correspond to
+        # 2) Determine target space's coordinates in the 3x3 grid of regions
+        # 3) Determine to which index of the new list these coordinates correspond
         regions = self.rows_to_regions(puzzle)
         reg_row = (row//3)*3
         reg_col = (col//3)*3
@@ -97,6 +104,53 @@ class Sudoku:
         if number in regions[target_region]:
             return False
         return True
+
+    def get_possible_numbers(self, puzzle: list, row: int, col: int) -> list:
+        '''
+        Get a list of possible numbers for a given space.
+        Iterate through all 9 numbers and append them to the return list
+        if not already present in the same row/column/region
+            Args:
+                puzzle -> the whole grid
+                row/col -> the space coordinates
+        '''
+        # If there's already a number, return a list with that as the single element
+        if puzzle[row][col]:
+            return [puzzle[row][col]]
+        
+        possible_numbers = []
+        for number in range(1,10):
+            if self.is_possible(puzzle, row, col, number):
+                possible_numbers.append(number)
+        
+        if not possible_numbers:
+            raise NoValidNumbers(f'No valid numbers in coordinate ({row},{col})')
+
+        return possible_numbers
+
+    def constraint_propagation(self, puzzle: list) -> list:
+        '''
+        Recursive method to populate spaces using the following constraint propagation strategies:
+            1) If a given space only has one possible number, populate that number
+            2) If a given row/column/region only has one possible space for a number, populate it there.
+        '''
+        new_puzzle = deepcopy(puzzle)
+        for row in range(9):
+            for col in range(9):
+                if not puzzle[row][col]:
+                    possibles = self.get_possible_numbers(new_puzzle, row, col)
+
+                    # If a given space only has one possible number, populate that number
+                    if len(possibles) == 1:
+                        new_puzzle[row][col] = possibles[0]
+                    else:
+                        # If a number cannot fit anywhere else in same row/column/region only has one possible space for a number, populate it here
+                        for number in possibles:
+                            in_row = sum([self.is_possible(new_puzzle, row, cell) for cell in new_puzzle[row]])
+
+
+
+
 
 
 
