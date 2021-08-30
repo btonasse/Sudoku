@@ -86,6 +86,9 @@ class Sudoku:
                 row/col -> the space coordinates
                 number -> the number being tested
         '''
+        # Check if space already has a number
+        if puzzle[row][col]:
+            return False
         # Check if number exists in row
         if number in puzzle[row]:
             return False
@@ -100,7 +103,7 @@ class Sudoku:
         regions = self.rows_to_regions(puzzle)
         reg_row = (row//3)*3
         reg_col = (col//3)*3
-        target_region = reg_row*3 + reg_col
+        target_region = reg_row + reg_col
         if number in regions[target_region]:
             return False
         return True
@@ -146,7 +149,14 @@ class Sudoku:
                     else:
                         # If a number cannot fit anywhere else in same row/column/region only has one possible space for a number, populate it here
                         for number in possibles:
-                            in_row = sum([self.is_possible(new_puzzle, row, cell) for cell in new_puzzle[row]])
+                            times_possible_in_row = sum([self.is_possible(new_puzzle, row, cell, number) for cell in range(9)])
+                            times_possible_in_col = sum([self.is_possible(new_puzzle, cell, col, number) for cell in range(9)])
+                            # region
+                            if times_possible_in_row == 1:
+                                new_puzzle[row][col] = number
+                            
+
+
 
 
 
