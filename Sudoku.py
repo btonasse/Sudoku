@@ -4,21 +4,18 @@ from copy import deepcopy
 
 class SudokuGrid():
 	'''
-	Sudoku board.
+	Sudoku solver/generator. Uses a mixture of constraint propagation/backtracking to solve puzzles.
 	Attributes:
-	clues = how many clues should a proposed puzzle have
-	result = the final resolved board
-	puzzle = a proposed puzzle
-	solvedpuzzle = solved puzzle
-	prop_steps, exp_steps = current number of iterations the solver took to solve a puzzle with constraint propagation/guessing
+		puzzle = a proposed puzzle
+		solvedpuzzle = solved puzzle
+		prop_steps, exp_steps = current number of iterations the solver took to solve a puzzle with constraint propagation/guessing
 		
 	Standalone methods:
 	print_grid(): Prints the grid to the console, taking the rows attribute as argument.
 	#put the rest here
 	'''
 
-	def __init__(self, clues=35):
-		self.clues = clues
+	def __init__(self):
 		self.puzzle = None
 		self.solvedpuzzle = None
 		self.prop_steps = 0
@@ -301,16 +298,16 @@ class SudokuGrid():
 			break
 		return puzzle
 
-	def propose_puzzle(self, tofile=False):
+	def propose_puzzle(self, clues: int = 35, tofile: bool = False):
 		'''
 		Looks for a valid unique puzzle with the specified number of clues.
 		'''
 		loops = 0
-		toremove = 81-self.clues
+		toremove = 81-clues
 		res = self.gen_valid_board()
 		printedres = self.print_grid(res, tofile)
 		resnotation = self.puzzle_to_string(res)
-		print(f'Looking for a unique puzzle with {self.clues} clues...')
+		print(f'Looking for a unique puzzle with {clues} clues...')
 		while toremove > 0:
 			rescopy = deepcopy(res)
 			res = self.remove_square(res)
@@ -329,7 +326,7 @@ class SudokuGrid():
 		puznotation = self.puzzle_to_string(self.puzzle)
 		if tofile:
 			genpuzes = open('generatedPuzzles.txt', 'a')
-			genpuzes.write('Result:\n'+resnotation+printedres+f'Puzzle with {self.clues} clues:\n'+puznotation+printedpuz+'\n')
+			genpuzes.write('Result:\n'+resnotation+printedres+f'Puzzle with {clues} clues:\n'+puznotation+printedpuz+'\n')
 			genpuzes.close()
 		print('Success!')
 		return printedres, printedpuz
@@ -464,14 +461,14 @@ if __name__ == '__main__':
 			ans2 = input('How many clues [17-80] should the puzzles have?\nWARNING: choosing less than 24 clues can take a LONG time!\n')
 			try: ans2 = int(ans2)
 			except: pass
-		g.clues = ans2
+		clues = ans2
 		while not ans3 or ans3.lower() not in 'yn':
 			ans3 = input('Output generated puzzles to generatedPuzzles.txt? [y/n]\n')
 		for i in range(ans1):
 			if ans3.lower() == 'n':
-				g.propose_puzzle()
+				g.propose_puzzle(clues)
 			else:
-				g.propose_puzzle(tofile=True)
+				g.propose_puzzle(clues, tofile=True)
 
 input('Close?')
 
