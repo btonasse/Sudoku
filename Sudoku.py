@@ -77,7 +77,6 @@ class Sudoku:
                 regions.append(new_region)
         return regions
                 
-
     def is_possible(self, puzzle: list, row: int, col: int, number: int) -> bool:
         '''
         Check if a number can be entered in a given space.
@@ -101,12 +100,22 @@ class Sudoku:
         # 2) Determine target space's coordinates in the 3x3 grid of regions
         # 3) Determine to which index of the new list these coordinates correspond
         regions = self.rows_to_regions(puzzle)
-        reg_row = (row//3)*3
-        reg_col = (col//3)*3
-        target_region = reg_row + reg_col
+        target_region = self.get_region_index(row, col)
         if number in regions[target_region]:
             return False
         return True
+
+    def get_region_index(self, row: int, col: int) -> int:
+        '''
+        Given row and column, return the index corresponding to the region a given space is in.
+        Regions are arbitrarily ordered from left to right and top to bottom
+            Args:
+                row/col -> the space coordinates
+        '''
+        region_row = (row//3)*3
+        region_col = (col//3)*3
+        region_index = region_row + region_col
+        return region_index
 
     def get_possible_numbers(self, puzzle: list, row: int, col: int) -> list:
         '''
@@ -152,7 +161,7 @@ class Sudoku:
                             times_possible_in_row = sum([self.is_possible(new_puzzle, row, cell, number) for cell in range(9)])
                             times_possible_in_col = sum([self.is_possible(new_puzzle, cell, col, number) for cell in range(9)])
                             # region
-                            if times_possible_in_row == 1:
+                            if times_possible_in_row == 1 or times_possible_in_col == 1:
                                 new_puzzle[row][col] = number
                             
 
