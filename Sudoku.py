@@ -112,9 +112,9 @@ class Sudoku:
             Args:
                 row/col -> the space coordinates
         '''
-        region_row = (row//3)*3
-        region_col = (col//3)*3
-        region_index = region_row + region_col
+        region_row = row//3
+        region_col = col//3
+        region_index = region_row*3 + region_col
         return region_index
 
     def get_possible_numbers(self, puzzle: list, row: int, col: int) -> list:
