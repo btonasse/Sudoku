@@ -208,6 +208,13 @@ class Sudoku:
                 f'{self.puzzle_to_string(new_puzzle)}'
             )
             return self.constraint_propagation(new_puzzle)
+    
+    def is_puzzle_solved(self, puzzle: list) -> bool:
+        '''
+        Check if all spaces have been filled
+        '''
+        flattened_puzzle = [puzzle[x][y] for x in range(9) for y in range(9)]
+        return all(flattened_puzzle)
 
 
 if __name__ == '__main__':
