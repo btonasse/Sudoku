@@ -11,7 +11,7 @@ class TestSudoku(unittest.TestCase):
     def setUp(self) -> None:
         self.sud = Sudoku('003020600900305001001806400008102900700000008006708200002609500800203009005010300')
     
-    def test_puzzle_parsing(self) -> None:
+    def test_a_puzzle_parsing(self) -> None:
         puzzle_string = '003020600900305001001806400008102900700000008006708200002609500800203009005010300'
         expected_puzzle = [
             [0, 0, 3, 0, 2, 0, 6, 0, 0],
@@ -44,3 +44,15 @@ class TestSudoku(unittest.TestCase):
         regions = self.sud.rows_to_regions()
         self.assertEqual(cols, expected_cols)
         self.assertEqual(regions, expected_regions)
+
+    def test_is_possible_on_empty_space(self) -> None:
+        expected_results_at_00 = [False,False,False,True,True,False,False,False,False]
+        for number in range(1,10):
+            with self.subTest(i=number):
+                self.assertEqual(self.sud.is_possible(0, 0, number), expected_results_at_00[number-1])
+
+    def test_is_possible_on_non_empty_space(self) -> None:
+        expected_results_at_01 = [False,False,False,False,False,False,False,False,False]
+        for number in range(1,10):
+            with self.subTest(i=number):
+                self.assertEqual(self.sud.is_possible(1, 0, number), expected_results_at_01[number-1])
