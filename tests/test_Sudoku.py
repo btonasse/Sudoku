@@ -52,7 +52,12 @@ class TestSudoku(unittest.TestCase):
                 self.assertEqual(self.sud.is_possible(0, 0, number), expected_results_at_00[number-1])
 
     def test_is_possible_on_non_empty_space(self) -> None:
-        expected_results_at_01 = [False,False,False,False,False,False,False,False,False]
-        for number in range(1,10):
-            with self.subTest(i=number):
-                self.assertEqual(self.sud.is_possible(1, 0, number), expected_results_at_01[number-1])
+        possibilities = [self.sud.is_possible(1, 0, number) for number in range(1,10)]
+        self.assertTrue(not any(possibilities))
+    
+    def test_region_index(self) -> None:
+        coords = [(4,3), (7,0), (2,8)]
+        expected_indexes = [4, 6, 2]
+        for i in range(3):
+            with self.subTest(i=i):
+                self.assertEqual(self.sud.get_region_index(coords[i][0], coords[i][1]), expected_indexes[i])
