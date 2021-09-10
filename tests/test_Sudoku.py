@@ -6,7 +6,10 @@ python -m unittest discover -s tests -v
 import unittest
 from Sudoku import Sudoku
 
-class TestSudoku(unittest.TestCase):
+class TestSudokuSimple(unittest.TestCase):
+    '''
+    Test case with a simple puzzle where the full solution can be obtained via constraint propagation.
+    '''
 
     def setUp(self) -> None:
         self.sud = Sudoku('003020600900305001001806400008102900700000008006708200002609500800203009005010300')
@@ -76,3 +79,17 @@ class TestSudoku(unittest.TestCase):
         for i in range(len(coords)):
             with self.subTest(i=i):
                 self.assertEqual(self.sud.is_only_possible_space_for_number(self.sud.puzzle, coords[i][0], coords[i][1], numbers[i]), expected[i])
+    
+    def test_full_solution_with_constraint_propagation(self) -> None:
+        expected_solution = [
+            [4, 8, 3, 9, 2, 1, 6, 5, 7],
+            [9, 6, 7, 3, 4, 5, 8, 2, 1],
+            [2, 5, 1, 8, 7, 6, 4, 9, 3],
+            [5, 4, 8, 1, 3, 2, 9, 7, 6],
+            [7, 2, 9, 5, 6, 4, 1, 3, 8],
+            [1, 3, 6, 7, 9, 8, 2, 4, 5],
+            [3, 7, 2, 6, 8, 9, 5, 1, 4],
+            [8, 1, 4, 2, 5, 3, 7, 6, 9],
+            [6, 9, 5, 4, 1, 7, 3, 8, 2]
+        ]
+        self.assertEqual(self.sud.constraint_propagation(self.sud.puzzle), expected_solution)

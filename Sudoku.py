@@ -1,5 +1,6 @@
 from random import shuffle, randint
 from copy import deepcopy
+import logging
 
 class NoValidNumbers(ValueError):
     '''
@@ -10,9 +11,14 @@ class Sudoku:
     Sudoku solver/generator. Uses a mixture of constraint propagation/backtracking to solve puzzles.
     # Todo usage
     '''
-    def __init__(self, puzzle_string) -> None:
+    def __init__(self, puzzle_string, loglevel=logging.WARNING) -> None:
         self.puzzle = self.parse_puzzle(puzzle_string)
         self.solution = None
+        
+        # Set up logger
+        logging.basicConfig(level=loglevel)
+        self.logger = logging.getLogger('Sudoku')
+        self.logger.debug(f'Loaded puzzle:\n{self.puzzle_to_string(self.puzzle)}')
 
     def parse_puzzle(self, puzzle_string: str) -> list:
         '''
@@ -136,9 +142,6 @@ class Sudoku:
         for number in range(1,10):
             if self.is_possible(puzzle, row, col, number):
                 possible_numbers.append(number)
-        
-        if not possible_numbers:
-            raise NoValidNumbers(f'No valid numbers in coordinate ({row},{col})')
 
         return possible_numbers
 
@@ -169,7 +172,6 @@ class Sudoku:
             return True
         return False
 
-
     def constraint_propagation(self, puzzle: list) -> list:
         '''
         Recursive method to populate spaces using the following constraint propagation strategies:
@@ -186,25 +188,33 @@ class Sudoku:
                     
                     # If a given space only has one possible number, populate that number
                     if len(possibles) == 1:
+                        self.logger.debug(f'Coordinate ({row},{col}) only has one possible: {possibles[0]}')
                         new_puzzle[row][col] = possibles[0]
                     else:
                         # If a number cannot fit anywhere else in same row/column/region only has one possible space for a number, populate it here
                         for number in possibles:
                             if self.is_only_possible_space_for_number(new_puzzle, row, col, number):
+                                self.logger.debug(f'Coordinate ({row},{col}) is only possibility for number: {number}')
                                 new_puzzle[row][col] = number
+                                break
         
         # Check if new_puzzle is the same as original one (no more propagation is possible)
         # If it is not, try to keep propagating recursively
         if new_puzzle == puzzle:
             return new_puzzle
         else:
+            self.logger.debug(
+                f'New state after propagation:\n'
+                f'{self.puzzle_to_string(new_puzzle)}'
+            )
             return self.constraint_propagation(new_puzzle)
 
 
 
 if __name__ == '__main__':
-    x = Sudoku('003020600900305001001806400008102900700000008006708200002609500800203009005010300')
-
-            
-
-
+    # Debug mode on with simple puzzle
+    sud = Sudoku('003020600900305001001806400008102900700000008006708200002609500800203009005010300', loglevel=logging.DEBUG)
+    solution = sud.constraint_propagation(sud.puzzle)
+    
+    sud2 = Sudoku('483921657967345821251876493548132976729564138136798245372689514814253769695417382')
+    print(sud2.puzzle)
