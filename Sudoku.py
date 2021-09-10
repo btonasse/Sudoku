@@ -1,5 +1,6 @@
 from random import shuffle, randint
 from copy import deepcopy
+from typing import List
 
 class NoValidNumbers(ValueError):
     '''
@@ -117,7 +118,7 @@ class Sudoku:
         region_index = region_row*3 + region_col
         return region_index
 
-    def get_possible_numbers(self, puzzle: list, row: int, col: int) -> list:
+    def get_possible_numbers_for_space(self, puzzle: list, row: int, col: int) -> list:
         '''
         Get a list of possible numbers for a given space.
         Iterate through all 9 numbers and append them to the return list
@@ -140,6 +141,33 @@ class Sudoku:
 
         return possible_numbers
 
+    def get_possible_spaces_for_number(self, puzzle: list, row: int, col: int, number: int) -> List[tuple]:
+        '''
+        Get all possible spaces (represented as tuples of row/col coordinates),
+        where a number can be placed in a given row, column and region.
+            Args:
+                puzzle -> the full grid of the puzzle
+                row/col -> reference coordinate from which to derive the row, column and region to be analyzed
+                number -> number to analyze
+            Returns:
+                Three lists of tuple coordinates (row, column and region),
+                representing all spaces where the specified number could be placed.
+        '''
+        row_possibles = [(row, cell) for cell in range(9) if self.is_possible(puzzle, row, cell, number)]
+        col_possibles = [(cell, col) for cell in range(9) if self.is_possible(puzzle, cell, col, number)]
+
+        region_root_x = (row//3)*3
+        region_root_y = (col//3)*3
+        region_possibles = [
+            (x,y)
+            for x in range(region_root_x, region_root_x+3)
+            for y in range(region_root_y, region_root_y+3)
+            if self.is_possible(puzzle, x, y, number)
+        ]
+        
+        return row_possibles, col_possibles, region_possibles
+
+
     def constraint_propagation(self, puzzle: list) -> list:
         '''
         Recursive method to populate spaces using the following constraint propagation strategies:
@@ -150,18 +178,19 @@ class Sudoku:
         for row in range(9):
             for col in range(9):
                 if not puzzle[row][col]:
-                    possibles = self.get_possible_numbers(new_puzzle, row, col)
-
+                    possibles = self.get_possible_numbers_for_space(new_puzzle, row, col)
+                    if not possibles:
+                        raise NoValidNumbers(f'No valid numbers in row {row}, col {col}.')
+                    
                     # If a given space only has one possible number, populate that number
                     if len(possibles) == 1:
                         new_puzzle[row][col] = possibles[0]
+                  
                     else:
                         # If a number cannot fit anywhere else in same row/column/region only has one possible space for a number, populate it here
                         for number in possibles:
-                            times_possible_in_row = sum([self.is_possible(new_puzzle, row, cell, number) for cell in range(9)])
-                            times_possible_in_col = sum([self.is_possible(new_puzzle, cell, col, number) for cell in range(9)])
-                            # region
-                            if times_possible_in_row == 1 or times_possible_in_col == 1:
+                            possibles_in_row, possibles_in_col, possibles_in_reg = self.get_possible_spaces_for_number(new_puzzle, row, col, number)
+                            if len(possibles_in_row) == 1 or len(possibles_in_col) == 1 or len(possibles_in_reg) == 1:
                                 new_puzzle[row][col] = number
                             
 
