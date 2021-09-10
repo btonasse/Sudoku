@@ -210,11 +210,8 @@ class Sudoku:
             return self.constraint_propagation(new_puzzle)
 
 
-
 if __name__ == '__main__':
     # Debug mode on with simple puzzle
-    sud = Sudoku('003020600900305001001806400008102900700000008006708200002609500800203009005010300', loglevel=logging.DEBUG)
-    solution = sud.constraint_propagation(sud.puzzle)
-    
-    sud2 = Sudoku('483921657967345821251876493548132976729564138136798245372689514814253769695417382')
-    print(sud2.puzzle)
+    #sud = Sudoku('003020600900305001001806400008102900700000008006708200002609500800203009005010300', loglevel=logging.DEBUG)
+    #solution = sud.constraint_propagation(sud.puzzle)
+    pass
