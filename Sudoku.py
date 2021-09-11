@@ -152,6 +152,7 @@ class Sudoku:
 
         return possible_numbers
 
+    """
     def is_only_possible_space_for_number(self, puzzle: list, row: int, col: int, number: int) -> bool:
         '''
         Check if a number can only be placed on the specified space by checking
@@ -178,6 +179,27 @@ class Sudoku:
         if possible_spaces_in_reg == 1:
             return True
         return False
+    """
+    def is_only_possible_space_for_number(self, all_possibles: list, row: int, col: int, number: int) -> bool:
+        '''
+        Todo
+        '''
+        flattened_row_possibles = [possible for cell in all_possibles[row] for possible in cell]
+        if flattened_row_possibles.count(number) == 1:
+            return True
+        
+        all_possibles_cols = self.rows_to_cols(all_possibles)
+        flattened_col_possibles = [possible for cell in all_possibles_cols[col] for possible in cell]
+        if flattened_col_possibles.count(number) == 1:
+            return True
+
+        all_possibles_regs = self.rows_to_regions(all_possibles)
+        target_region = self.get_region_index(row, col)
+        flattened_reg_possibles = [possible for cell in all_possibles_regs[target_region] for possible in cell]
+        if flattened_reg_possibles.count(number) == 1:
+            return True
+        
+        return False
 
     def constraint_propagation(self, puzzle: list) -> list:
         '''
@@ -186,27 +208,38 @@ class Sudoku:
             2) If a given row/column/region only has one possible space for a number, populate it there.
         '''
         has_changed = False
-        for row in range(9):
-            for col in range(9):
-                if not puzzle[row][col]:
-                    possibles = self.get_possible_numbers_for_space(puzzle, row, col)
-                    if not possibles:
-                        self.logger.debug(f'No valid numbers in row {row}, col {col}.')
-                        raise NoValidNumbers(f'No valid numbers in row {row}, col {col}.')
-                    
-                    # If a given space only has one possible number, populate that number
-                    if len(possibles) == 1:
-                        self.logger.debug(f'Coordinate ({row},{col}) only has one possible: {possibles[0]}')
-                        puzzle[row][col] = possibles[0]
+        all_possibles = self.get_full_list_of_possible_numbers(puzzle)
+        for row, possibles_row in enumerate(all_possibles):
+            for col, possibles_in_space in enumerate(possibles_row):
+                if puzzle[row][col]:
+                    continue
+                if not possibles_in_space:
+                    self.logger.debug(f'No valid numbers in row {row}, col {col}.')
+                    raise NoValidNumbers(f'No valid numbers in row {row}, col {col}.')
+                
+                # If a given space only has one possible number, populate that number
+                if len(possibles_in_space) == 1 and self.is_possible(puzzle, row, col, possibles_in_space[0]):
+                    self.logger.debug(f'Coordinate ({row},{col}) only has one possible: {possibles_in_space[0]}')
+                    puzzle[row][col] = possibles_in_space[0]
+                    has_changed = True
+        
+        # If a number cannot fit anywhere else in same row/column/region only has one possible space for a number, populate it here
+        if has_changed:
+            all_possibles = self.get_full_list_of_possible_numbers(puzzle)
+        for row, possibles_row in enumerate(all_possibles):
+            for col, possibles_in_space in enumerate(possibles_row):
+                if puzzle[row][col]:
+                    continue
+                if not possibles_in_space:
+                    self.logger.debug(f'No valid numbers in row {row}, col {col}.')
+                    raise NoValidNumbers(f'No valid numbers in row {row}, col {col}.')
+                for number in possibles_in_space:
+                    if self.is_only_possible_space_for_number(all_possibles, row, col, number) and self.is_possible(puzzle, row, col, number):
+                        self.logger.debug(f'Coordinate ({row},{col}) is only possibility for number: {number}')
+                        puzzle[row][col] = number
                         has_changed = True
-                    else:
-                        # If a number cannot fit anywhere else in same row/column/region only has one possible space for a number, populate it here
-                        for number in possibles:
-                            if self.is_only_possible_space_for_number(puzzle, row, col, number):
-                                self.logger.debug(f'Coordinate ({row},{col}) is only possibility for number: {number}')
-                                puzzle[row][col] = number
-                                has_changed = True
-                                break
+                        break
+        
         # Check if new_puzzle is the same as original one (no more propagation is possible)
         # If it is not, try to keep propagating recursively
         if not has_changed:
@@ -219,6 +252,20 @@ class Sudoku:
             )
             return self.constraint_propagation(puzzle)
     
+    def get_full_list_of_possible_numbers(self, puzzle: list) -> list:
+        '''
+        Returns a list of possible numbers for each space in the puzzle grid
+        '''
+        possibles = []
+        for row in range(9):
+            possibles.append([])
+            for col in range(9):
+                possibles_in_space = self.get_possible_numbers_for_space(puzzle, row, col)
+                if not possibles_in_space:
+                    raise NoValidNumbers(f'No valid numbers in row {row}, col {col}.')
+                possibles[row].append(possibles_in_space)
+        return possibles
+
     def is_puzzle_solved(self, puzzle: list) -> bool:
         '''
         Check if all spaces have been filled
