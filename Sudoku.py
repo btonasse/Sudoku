@@ -143,8 +143,18 @@ class Sudoku:
 
         return possibles, rpf, cpf, regpf
 
-    def is_only_possible_space_for_number(self, all_possibles: list, row: int, col: int, number: int) -> bool:
-        pass
+    def is_only_possible_space_for_number(self, in_rows: list, in_cols: list, in_regs: list, row: int, col: int, number: int) -> bool:
+        '''
+        Constraing propagation strategy 2:
+        Check if a number cannot fit anywhere else in the row, col or region of a given coordinate.
+        '''
+        if in_rows[row].count(number) == 1:
+            return True
+        if in_cols[col].count(number) == 1:
+            return True
+        if in_regs[col//3+3*(row//3)].count(number) == 1:
+            return True
+        return False
 
     def constraint_propagation(self, puzzle: list) -> list:
         '''
@@ -171,7 +181,7 @@ class Sudoku:
                 # If a number cannot fit anywhere else in same row/column/region only has one possible space for a number, populate it here
                 else:
                     for number in possibles_in_space:
-                        if (rpf[row].count(number) == 1 or cpf[col].count(number) == 1 or regpf[col//3+3*(row//3)].count(number) == 1) and self.is_possible(puzzle, row, col, number):
+                        if self.is_only_possible_space_for_number(rpf, cpf, regpf, row, col, number) and self.is_possible(puzzle, row, col, number):
                             self.logger.debug(f'Coordinate ({row},{col}) is only possibility for number: {number}')
                             puzzle[row][col] = number
                             has_changed = True
@@ -189,20 +199,6 @@ class Sudoku:
             )
             return self.constraint_propagation(puzzle)
     
-    def get_full_list_of_possible_numbers(self, puzzle: list) -> list:
-        '''
-        Returns a list of possible numbers for each space in the puzzle grid
-        '''
-        possibles = []
-        for row in range(9):
-            possibles.append([])
-            for col in range(9):
-                possibles_in_space = self.get_possible_numbers_for_space(puzzle, row, col)
-                if not possibles_in_space:
-                    raise NoValidNumbers(f'No valid numbers in row {row}, col {col}.')
-                possibles[row].append(possibles_in_space)
-        return possibles
-
     def is_puzzle_solved(self, puzzle: list) -> bool:
         '''
         Check if all spaces have been filled
