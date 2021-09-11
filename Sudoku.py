@@ -2,6 +2,7 @@ from random import shuffle
 from copy import deepcopy
 import logging
 from typing import Tuple
+import time
 
 class NoValidNumbers(ValueError):
     '''
@@ -23,7 +24,7 @@ class Sudoku:
         # Set up logger
         logging.basicConfig(level=loglevel)
         self.logger = logging.getLogger('Sudoku')
-        self.logger.debug(f'Loaded puzzle:\n{self.puzzle_to_string(self.puzzle)}')
+        print(f'Loaded puzzle:\n{self.puzzle_to_string(self.puzzle)}')
 
     def parse_puzzle(self, puzzle_string: str) -> list:
         '''
@@ -270,11 +271,31 @@ class Sudoku:
             try:
                 puzzle_after_constraint_prop = self.constraint_propagation(puzzle)
                 if self.experiment(puzzle_after_constraint_prop, randomize=randomize):
-                    return puzzle
+                    return self.constraint_propagation(puzzle_after_constraint_prop)
             except NoValidNumbers:
                 puzzle[row][col] = 0
+    
+    def solve(self) -> list:
+        '''
+        Solve the loaded puzzle by first applying constraint propagation techniques.
+        If puzzle cannot be solved like this, brute force the remaining spaces using a backtracking algorithm.
+        To speed up this process, after each 'guess' the constraint propagation algorithm is applied again.
+        '''
+        print('Trying to solving puzzle using constraint propagation...')
+        start_time = time.perf_counter()
+        prop_result = self.constraint_propagation(self.puzzle)
+        if self.is_puzzle_solved(prop_result):
+            solution = prop_result
+        else:
+            print('This is a tough one. Let me try guessing some numbers...')
+            solution = self.experiment(prop_result)
 
-
+        end_time = time.perf_counter()
+        total_time = end_time - start_time
+        print(f'Success! Puzzle solved in {total_time:.6f}s.')
+        print(f'Solution:\n{self.puzzle_to_string(solution)}')
+        self.solution = solution
+        return self.solution
 
 
 
@@ -282,13 +303,11 @@ if __name__ == '__main__':
     #pass
     # Debug mode on with simple puzzle
     #sud = Sudoku('003020600900305001001806400008102900700000008006708200002609500800203009005010300', loglevel=logging.DEBUG)
-    #solution = sud.constraint_propagation(sud.puzzle)
+    #solution = sud.solve()
     
     # Debug mode on with hard puzzle
     sud = Sudoku('85...24..72......9..4.........1.7..23.5...9...4...........8..7..17..........36.4.', loglevel=logging.DEBUG)
-    partial_solution = sud.constraint_propagation(sud.puzzle)
-    sud.logger.debug('Partial solution reached. Experimenting...')
-    result = sud.experiment(partial_solution)
+    solution = sud.solve()
     
 
 
