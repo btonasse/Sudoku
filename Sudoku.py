@@ -1,10 +1,15 @@
 from random import shuffle, randint
 from copy import deepcopy
 import logging
+from typing import Tuple
 
 class NoValidNumbers(ValueError):
     '''
     Error for when there are no valid numbers for a space
+    '''
+class AlreadySolved(Exception):
+    '''
+    Error for when trying to solve an already solved puzzle
     '''
 class Sudoku:
     '''
@@ -197,7 +202,6 @@ class Sudoku:
                                 self.logger.debug(f'Coordinate ({row},{col}) is only possibility for number: {number}')
                                 new_puzzle[row][col] = number
                                 break
-        
         # Check if new_puzzle is the same as original one (no more propagation is possible)
         # If it is not, try to keep propagating recursively
         if new_puzzle == puzzle:
@@ -216,9 +220,48 @@ class Sudoku:
         flattened_puzzle = [puzzle[x][y] for x in range(9) for y in range(9)]
         return all(flattened_puzzle)
 
+    def get_next_empty_space(self, puzzle: list) -> Tuple[int]:
+        '''
+        Iterate through the puzzle and return the coordinates of the first empty space
+        '''
+        for row in range(9):
+            for col in range(9):
+                if not puzzle[row][col]:
+                    return row, col
+        raise AlreadySolved(f'Puzzle is already solved!')
+    
+    def get_full_list_of_possible_numbers(self, puzzle: list) -> list:
+        '''
+        Returns a list of possible numbers for each space in the puzzle grid
+        '''
+        possibles = []
+        for row in range(9):
+            possibles.append([])
+            for col in range(9):
+                possibles_in_space = self.get_possible_numbers_for_space(puzzle, row, col)
+                if not possibles_in_space:
+                    raise NoValidNumbers(f'No valid numbers in row {row}, col {col}.')
+                possibles[row].append(possibles_in_space)
+        return possibles
+    
+    def experiment(self, puzzle: list, randomize: bool = False) -> list:
+        '''
+        Get all possibilities for each space and experiment one at a time.
+        If the experiment results in an invalid grid state, backtrack and try next number.
+        '''
+        if self.is_puzzle_solved(puzzle):
+            return puzzle
+        empty_space = self.get_next_empty_space(puzzle)
 
 if __name__ == '__main__':
+    pass
     # Debug mode on with simple puzzle
     #sud = Sudoku('003020600900305001001806400008102900700000008006708200002609500800203009005010300', loglevel=logging.DEBUG)
     #solution = sud.constraint_propagation(sud.puzzle)
-    pass
+    
+    # Debug mode on with hard puzzle
+    #sud = Sudoku('85...24..72......9..4.........1.7..23.5...9...4...........8..7..17..........36.4.', loglevel=logging.DEBUG)
+    #partial_solution = sud.constraint_propagation(sud.puzzle)
+    #notation = sud.puzzle_to_notation(partial_solution)
+
+
