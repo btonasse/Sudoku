@@ -61,14 +61,6 @@ class TestSudokuSimple(unittest.TestCase):
         notation = self.sud.puzzle_to_notation(self.puzzle)
         self.assertEqual(notation, expected)
 
-    def test_transposition(self) -> None:
-        expected_cols = [(0, 9, 0, 0, 7, 0, 0, 8, 0), (0, 0, 0, 0, 0, 0, 0, 0, 0), (3, 0, 1, 8, 0, 6, 2, 0, 5), (0, 3, 8, 1, 0, 7, 6, 2, 0), (2, 0, 0, 0, 0, 0, 0, 0, 1), (0, 5, 6, 2, 0, 8, 9, 3, 0), (6, 0, 4, 9, 0, 2, 5, 0, 3), (0, 0, 0, 0, 0, 0, 0, 0, 0), (0, 1, 0, 0, 8, 0, 0, 9, 0)]
-        expected_regions = [[0, 0, 3, 9, 0, 0, 0, 0, 1], [0, 2, 0, 3, 0, 5, 8, 0, 6], [6, 0, 0, 0, 0, 1, 4, 0, 0], [0, 0, 8, 7, 0, 0, 0, 0, 6], [1, 0, 2, 0, 0, 0, 7, 0, 8], [9, 0, 0, 0, 0, 8, 2, 0, 0], [0, 0, 2, 8, 0, 0, 0, 0, 5], [6, 0, 9, 2, 0, 3, 0, 1, 0], [5, 0, 0, 0, 0, 9, 3, 0, 0]]
-        cols = self.sud.rows_to_cols(self.puzzle)
-        regions = self.sud.rows_to_regions(self.puzzle)
-        self.assertEqual(cols, expected_cols)
-        self.assertEqual(regions, expected_regions)
-
     def test_is_possible_on_empty_space(self) -> None:
         expected_results_at_00 = [False,False,False,True,True,False,False,False,False]
         for number in range(1,10):
@@ -79,13 +71,6 @@ class TestSudokuSimple(unittest.TestCase):
         possibilities = [self.sud.is_possible(self.puzzle, 1, 0, number) for number in range(1,10)]
         self.assertTrue(not any(possibilities))
     
-    def test_region_index(self) -> None:
-        coords = [(4,3), (7,0), (2,8)]
-        expected_indexes = [4, 6, 2]
-        for i in range(3):
-            with self.subTest(i=i):
-                self.assertEqual(self.sud.get_region_index(coords[i][0], coords[i][1]), expected_indexes[i])
-
     def test_possible_numbers_for_space(self) -> None:
         coords = [(4,5), (1,0), (0,0)]
         expected = [[4], [9], [4,5]]
@@ -97,9 +82,13 @@ class TestSudokuSimple(unittest.TestCase):
         coords = [(0,5), (1,2), (1,1)]
         numbers = [1, 4, 6]
         expected = [True, False, True]
+
+        by_rows = [[4, 5, 4, 5, 7, 8, 3, 4, 9, 2, 1, 4, 7, 6, 5, 7, 8, 9, 5, 7], [9, 2, 4, 6, 7, 8, 4, 7, 3, 4, 7, 5, 7, 8, 2, 7, 8, 1], [2, 5, 2, 5, 7, 1, 8, 7, 9, 6, 4, 2, 3, 5, 7, 9, 2, 3, 5, 7], [3, 4, 5, 3, 4, 5, 8, 1, 3, 4, 5, 6, 2, 9, 3, 4, 5, 6, 7, 3, 4, 5, 6, 7], [7, 1, 2, 3, 4, 5, 9, 4, 9, 4, 5, 9, 3, 4, 5, 6, 9, 4, 1, 1, 3, 4, 5, 6, 8], [1, 3, 4, 5, 1, 3, 4, 5, 9, 6, 7, 3, 4, 5, 9, 8, 2, 1, 3, 4, 5, 3, 4, 5], [1, 3, 4, 1, 3, 4, 7, 2, 6, 4, 7, 8, 9, 5, 1, 4, 7, 8, 4, 7], [8, 1, 4, 6, 7, 4, 7, 2, 4, 5, 7, 3, 1, 7, 1, 4, 6, 7, 9], [4, 6, 4, 6, 7, 9, 5, 4, 1, 4, 7, 3, 2, 4, 6, 7, 8, 2, 4, 6, 7]]
+        by_cols = [[4, 5, 9, 2, 5, 3, 4, 5, 7, 1, 3, 4, 5, 1, 3, 4, 8, 4, 6], [4, 5, 7, 8, 2, 4, 6, 7, 8, 2, 5, 7, 3, 4, 5, 1, 2, 3, 4, 5, 9, 1, 3, 4, 5, 9, 1, 3, 4, 7, 1, 4, 6, 7, 4, 6, 7, 9], [3, 4, 7, 1, 8, 4, 9, 6, 2, 4, 7, 5], [4, 9, 3, 8, 1, 4, 5, 9, 7, 6, 2, 4], [2, 4, 7, 7, 9, 3, 4, 5, 6, 3, 4, 5, 6, 9, 3, 4, 5, 9, 4, 7, 8, 4, 5, 7, 1], [1, 4, 7, 5, 6, 2, 4, 8, 9, 3, 4, 7], [6, 7, 8, 4, 9, 1, 2, 5, 1, 7, 3], [5, 7, 8, 9, 2, 7, 8, 2, 3, 5, 7, 9, 3, 4, 5, 6, 7, 1, 3, 4, 5, 6, 1, 3, 4, 5, 1, 4, 7, 8, 1, 4, 6, 7, 2, 4, 6, 7, 8], [5, 7, 1, 2, 3, 5, 7, 3, 4, 5, 6, 7, 8, 3, 4, 5, 4, 7, 9, 2, 4, 6, 7]]
+        by_regs = [[4, 5, 4, 5, 7, 8, 3, 9, 2, 4, 6, 7, 8, 4, 7, 2, 5, 2, 5, 7, 1], [4, 9, 2, 1, 4, 7, 3, 4, 7, 5, 8, 7, 9, 6], [6, 5, 7, 8, 9, 5, 7, 7, 8, 2, 7, 8, 1, 4, 2, 3, 5, 7, 9, 2, 3, 5, 7], [3, 4, 5, 3, 4, 5, 8, 7, 1, 2, 3, 4, 5, 9, 4, 9, 1, 3, 4, 5, 1, 3, 4, 5, 9, 6], [1, 3, 4, 5, 6, 2, 4, 5, 9, 3, 4, 5, 6, 9, 4, 7, 3, 4, 5, 9, 8], [9, 3, 4, 5, 6, 7, 3, 4, 5, 6, 7, 1, 1, 3, 4, 5, 6, 8, 2, 1, 3, 4, 5, 3, 4, 5], [1, 3, 4, 1, 3, 4, 7, 2, 8, 1, 4, 6, 7, 4, 7, 4, 6, 4, 6, 7, 9, 5], [6, 4, 7, 8, 9, 2, 4, 5, 7, 3, 4, 1, 4, 7], [5, 1, 4, 7, 8, 4, 7, 1, 7, 1, 4, 6, 7, 9, 3, 2, 4, 6, 7, 8, 2, 4, 6, 7]]
         for i in range(len(coords)):
             with self.subTest(i=i):
-                self.assertEqual(self.sud.is_only_possible_space_for_number(self.possibles, coords[i][0], coords[i][1], numbers[i]), expected[i])
+                self.assertEqual(self.sud.is_only_possible_space_for_number(by_rows, by_cols, by_regs, coords[i][0], coords[i][1], numbers[i]), expected[i])
     
     def test_full_solution_with_constraint_propagation(self) -> None:
         self.assertEqual(self.sud.constraint_propagation(self.puzzle), self.solution)

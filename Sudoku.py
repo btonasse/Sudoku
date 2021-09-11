@@ -117,9 +117,11 @@ class Sudoku:
                 possible_numbers.append(number)
         return possible_numbers
 
-    def gen_possibles(self, puzzle: list) -> list:
+    def get_list_of_possible_numbers(self, puzzle: list) -> Tuple[list]:
         '''
-        Generates a list of possible numbers for each square. rpf/cpf/regpf are flattened versions of this list organized by columns/regions, to be used with constraint propagation strategy 2.
+        Generates a nested list of possible numbers for each square.
+        Then takes the full list of possible numbers and transforms it into three lists
+        containing all possible numbers for each row, col and region, respectively.
         '''
         possibles = [[[] for _ in range(9)] for _ in range(9)]
         for rowno, row in enumerate(puzzle):
@@ -131,17 +133,17 @@ class Sudoku:
                 else:
                     possibles[rowno][colno] = [value]
         
-        rpf= [[] for _ in range(9)] 
-        cpf= [[] for _ in range(9)]
-        regpf= [[] for _ in range(9)]
-        for i, row in enumerate(possibles):
-            for I, col in enumerate(row):
-                for el in col:
-                    rpf[i].append(el)
-                    cpf[I].append(el)
-                    regpf[I//3+3*(i//3)].append(el)
-
-        return possibles, rpf, cpf, regpf
+        by_rows = [[] for _ in range(9)] 
+        by_cols = [[] for _ in range(9)]
+        by_regs = [[] for _ in range(9)]
+        for row, row_possibles in enumerate(possibles):
+            for col, space in enumerate(row_possibles):
+                for number in space:
+                    by_rows[row].append(number)
+                    by_cols[col].append(number)
+                    by_regs[col//3+3*(row//3)].append(number)
+        
+        return possibles, by_rows, by_cols, by_regs
 
     def is_only_possible_space_for_number(self, in_rows: list, in_cols: list, in_regs: list, row: int, col: int, number: int) -> bool:
         '''
@@ -161,10 +163,11 @@ class Sudoku:
         Recursive method to populate spaces using the following constraint propagation strategies:
             1) If a given space only has one possible number, populate that number
             2) If a given row/column/region only has one possible space for a number, populate it there.
+        To avoid the overhead of generating the list of possible numbers every time a new space is filled,
+        self.is_possible() is called instead right before insertion to make sure it's a valid number.
         '''
         has_changed = False
-        #all_possibles = self.get_full_list_of_possible_numbers(puzzle)
-        all_possibles, rpf, cpf, regpf = self.gen_possibles(puzzle)
+        all_possibles, by_rows, by_cols, by_regs = self.get_list_of_possible_numbers(puzzle)
         for row, possibles_row in enumerate(all_possibles):
             for col, possibles_in_space in enumerate(possibles_row):
                 if puzzle[row][col]:
@@ -181,12 +184,11 @@ class Sudoku:
                 # If a number cannot fit anywhere else in same row/column/region only has one possible space for a number, populate it here
                 else:
                     for number in possibles_in_space:
-                        if self.is_only_possible_space_for_number(rpf, cpf, regpf, row, col, number) and self.is_possible(puzzle, row, col, number):
+                        if self.is_only_possible_space_for_number(by_rows, by_cols, by_regs, row, col, number) and self.is_possible(puzzle, row, col, number):
                             self.logger.debug(f'Coordinate ({row},{col}) is only possibility for number: {number}')
                             puzzle[row][col] = number
                             has_changed = True
                             break
-        
         # Check if new_puzzle is the same as original one (no more propagation is possible)
         # If it is not, try to keep propagating recursively
         if not has_changed:
