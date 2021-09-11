@@ -103,22 +103,18 @@ class Sudoku:
         # Check if space already has a number
         if puzzle[row][col]:
             return False
-        # Check if number exists in row
-        if number in puzzle[row]:
-            return False
-        # Check if number exists in column
-        columns = self.rows_to_cols(puzzle)
-        if number in columns[col]:
-            return False
-        # Check if number exists in region by:
-        # 1) Transposing the puzzle to a list of regions
-        # 2) Determine target space's coordinates in the 3x3 grid of regions
-        # 3) Determine to which index of the new list these coordinates correspond
-        regions = self.rows_to_regions(puzzle)
-        target_region = self.get_region_index(row, col)
-        if number in regions[target_region]:
-            return False
+        for i in range(9):
+            if puzzle[row][i] == number:
+                return False
+            if puzzle[i][col] == number:
+                return False
+            # Check in region
+            root_row = (row//3)*3
+            root_col = (col//3)*3
+            if number in puzzle[root_row+i//3][root_col:root_col+3]:
+                return False
         return True
+
 
     def get_region_index(self, row: int, col: int) -> int:
         '''
