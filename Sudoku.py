@@ -253,7 +253,7 @@ class Sudoku:
             self.logger.debug(f'Trying {number} in ({row},{col})...')
             puzzle[row][col] = number
             try:
-                puzzle_after_constraint_prop = self.constraint_propagation(deepcopy(puzzle))
+                puzzle_after_constraint_prop = self.constraint_propagation(puzzle)
                 puzzle_after_constraint_prop = self.experiment(puzzle_after_constraint_prop, randomize=randomize)
                 if puzzle_after_constraint_prop:
                     return puzzle_after_constraint_prop
