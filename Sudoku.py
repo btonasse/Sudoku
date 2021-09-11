@@ -143,46 +143,21 @@ class Sudoku:
         '''
         # If there's already a number, return a list with that as the single element
         if puzzle[row][col]:
-            return [puzzle[row][col]]
-        
+            return [puzzle[row][col]]        
         possible_numbers = []
         for number in range(1,10):
             if self.is_possible(puzzle, row, col, number):
                 possible_numbers.append(number)
-
         return possible_numbers
 
-    """
-    def is_only_possible_space_for_number(self, puzzle: list, row: int, col: int, number: int) -> bool:
+    def is_only_possible_space_for_number(self, all_possibles: list, row: int, col: int, number: int) -> bool:
         '''
         Check if a number can only be placed on the specified space by checking
         if the number can be placed anywhere else on same row, column or region.
             Args:
-                puzzle -> the whole grid
+                all_possibles -> a nested list of all possible numbers for each space
                 row/col -> reference coordinate from which to derive the row, column and region to be analyzed
                 number -> number to analyze. Is assumed to be possible number on the specified coordinate.
-        '''
-        possible_spaces_in_row = sum([self.is_possible(puzzle, row, i, number) for i in range(9)])
-        if possible_spaces_in_row == 1:
-            return True
-        possible_spaces_in_col = sum([self.is_possible(puzzle, i, col, number) for i in range(9)])
-        if possible_spaces_in_col == 1:
-            return True
-
-        region_root_x = (row//3)*3
-        region_root_y = (col//3)*3
-        possible_spaces_in_reg = sum([
-            self.is_possible(puzzle, x, y, number)
-            for x in range(region_root_x, region_root_x+3)
-            for y in range(region_root_y, region_root_y+3)
-        ])
-        if possible_spaces_in_reg == 1:
-            return True
-        return False
-    """
-    def is_only_possible_space_for_number(self, all_possibles: list, row: int, col: int, number: int) -> bool:
-        '''
-        Todo
         '''
         flattened_row_possibles = [possible for cell in all_possibles[row] for possible in cell]
         if flattened_row_possibles.count(number) == 1:
