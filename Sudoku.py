@@ -197,23 +197,14 @@ class Sudoku:
                     self.logger.debug(f'Coordinate ({row},{col}) only has one possible: {possibles_in_space[0]}')
                     puzzle[row][col] = possibles_in_space[0]
                     has_changed = True
-        
-        # If a number cannot fit anywhere else in same row/column/region only has one possible space for a number, populate it here
-        if has_changed:
-            all_possibles = self.get_full_list_of_possible_numbers(puzzle)
-        for row, possibles_row in enumerate(all_possibles):
-            for col, possibles_in_space in enumerate(possibles_row):
-                if puzzle[row][col]:
-                    continue
-                if not possibles_in_space:
-                    self.logger.debug(f'No valid numbers in row {row}, col {col}.')
-                    raise NoValidNumbers(f'No valid numbers in row {row}, col {col}.')
-                for number in possibles_in_space:
-                    if self.is_only_possible_space_for_number(all_possibles, row, col, number) and self.is_possible(puzzle, row, col, number):
-                        self.logger.debug(f'Coordinate ({row},{col}) is only possibility for number: {number}')
-                        puzzle[row][col] = number
-                        has_changed = True
-                        break
+                # If a number cannot fit anywhere else in same row/column/region only has one possible space for a number, populate it here
+                else:
+                    for number in possibles_in_space:
+                        if self.is_only_possible_space_for_number(all_possibles, row, col, number) and self.is_possible(puzzle, row, col, number):
+                            self.logger.debug(f'Coordinate ({row},{col}) is only possibility for number: {number}')
+                            puzzle[row][col] = number
+                            has_changed = True
+                            break
         
         # Check if new_puzzle is the same as original one (no more propagation is possible)
         # If it is not, try to keep propagating recursively
