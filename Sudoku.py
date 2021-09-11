@@ -236,7 +236,7 @@ class Sudoku:
         '''
         Check if all spaces have been filled
         '''
-        flattened_puzzle = [puzzle[x][y] for x in range(9) for y in range(9)]
+        flattened_puzzle = [y for row in puzzle for y in row]
         return all(flattened_puzzle)
 
     def get_next_empty_space(self, puzzle: list) -> Tuple[int]:
