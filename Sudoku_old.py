@@ -1,5 +1,6 @@
 from random import shuffle, randint
 from copy import deepcopy
+import time
 
 
 class SudokuGrid():
@@ -242,23 +243,26 @@ class SudokuGrid():
         else:
             print('Puzzle:')
             self.print_grid(self.puzzle)
+        start_time = time.perf_counter()
         state, result = self.constraint_prop(deepcopy(self.puzzle))
         if state == 'SOLVED':
+            end_time = time.perf_counter()
             if not fromfile:
                 self.print_grid(self.solvedpuzzle)
-                input(f'Solved with no need for guessing after {self.prop_steps} steps! Hit Enter to close.')
+                input(f'Solved with no need for guessing after {self.prop_steps} steps in {end_time-start_time:.6f}s! Hit Enter to close.')
             else:
                 propsolution = self.print_grid(self.solvedpuzzle, fromfile)
                 propsolnot = self.puzzle_to_string(self.solvedpuzzle)
         else:
             afterexp = self.experiment(result, shuff=False)
+            end_time = time.perf_counter()
             if not afterexp:
                 if not fromfile:
                     input('Puzzle has no solution. Hit Enter to close.')
             else:
                 if not fromfile:
                     self.print_grid(self.solvedpuzzle)
-                    input(f'Solved with guessing after {self.exp_steps} steps! Hit Enter to close.')
+                    input(f'Solved with guessing after {self.exp_steps} steps in {end_time-start_time:.6f}s! Hit Enter to close.')
                 else:
                     expsolution = self.print_grid(self.solvedpuzzle, fromfile)
                     expsolnot = self.puzzle_to_string(self.solvedpuzzle)
