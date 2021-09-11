@@ -1,7 +1,7 @@
 '''
 Unit tests for sudoku solver/creator
 Usage:
-python -m unittest discover -s tests -v
+python -m unittest discover -s tests -v -b
 '''
 import unittest
 from Sudoku import Sudoku
@@ -144,5 +144,9 @@ class TestSudokuHard(unittest.TestCase):
         expected = (0,2)
         space = self.sud.get_next_empty_space(self.partial_solution)
         self.assertEqual(space, expected)
+
+    def test_experiment(self) -> None:
+        solution = self.sud.experiment(self.partial_solution)
+        self.assertEqual(solution, self.solution)
 
 
