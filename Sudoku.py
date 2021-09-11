@@ -184,6 +184,7 @@ class Sudoku:
             1) If a given space only has one possible number, populate that number
             2) If a given row/column/region only has one possible space for a number, populate it there.
         '''
+        has_changed = False
         for row in range(9):
             for col in range(9):
                 if not puzzle[row][col]:
@@ -196,16 +197,18 @@ class Sudoku:
                     if len(possibles) == 1:
                         self.logger.debug(f'Coordinate ({row},{col}) only has one possible: {possibles[0]}')
                         puzzle[row][col] = possibles[0]
+                        has_changed = True
                     else:
                         # If a number cannot fit anywhere else in same row/column/region only has one possible space for a number, populate it here
                         for number in possibles:
                             if self.is_only_possible_space_for_number(puzzle, row, col, number):
                                 self.logger.debug(f'Coordinate ({row},{col}) is only possibility for number: {number}')
                                 puzzle[row][col] = number
+                                has_changed = True
                                 break
         # Check if new_puzzle is the same as original one (no more propagation is possible)
         # If it is not, try to keep propagating recursively
-        if puzzle == puzzle:
+        if not has_changed:
             self.logger.debug('No more propagation possible.')
             return puzzle
         else:
