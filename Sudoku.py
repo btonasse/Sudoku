@@ -232,23 +232,7 @@ class Sudoku:
                 if not puzzle[row][col]:
                     return row, col
         raise AlreadySolved(f'Puzzle is already solved!')
-    
-    """
-    def get_full_list_of_possible_numbers(self, puzzle: list) -> list:
-        '''
-        Returns a list of possible numbers for each space in the puzzle grid
-        '''
-        possibles = []
-        for row in range(9):
-            possibles.append([])
-            for col in range(9):
-                possibles_in_space = self.get_possible_numbers_for_space(puzzle, row, col)
-                if not possibles_in_space:
-                    raise NoValidNumbers(f'No valid numbers in row {row}, col {col}.')
-                possibles[row].append(possibles_in_space)
-        return possibles
-    """
-    
+       
     def experiment(self, puzzle: list, randomize: bool = False) -> list:
         '''
         Get all possibilities for each space and experiment one at a time.
