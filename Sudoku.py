@@ -271,7 +271,7 @@ class Sudoku:
         '''
         print('Trying to solving puzzle using constraint propagation...')
         start_time = time.perf_counter()
-        prop_result = self.constraint_propagation(self.puzzle)
+        prop_result = self.constraint_propagation(deepcopy(self.puzzle))
         if self.is_puzzle_solved(prop_result):
             solution = prop_result
         else:
@@ -284,6 +284,8 @@ class Sudoku:
         print(f'Solution:\n{self.puzzle_to_string(solution)}')
         self.solution = solution
         return self.solution
+
+    #def solve(self) ->
 
 
 
