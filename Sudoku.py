@@ -1,4 +1,4 @@
-from random import shuffle, randint
+from random import shuffle
 from copy import deepcopy
 import logging
 from typing import Tuple
@@ -189,6 +189,7 @@ class Sudoku:
                 if not new_puzzle[row][col]:
                     possibles = self.get_possible_numbers_for_space(new_puzzle, row, col)
                     if not possibles:
+                        self.logger.debug(f'No valid numbers in row {row}, col {col}.')
                         raise NoValidNumbers(f'No valid numbers in row {row}, col {col}.')
                     
                     # If a given space only has one possible number, populate that number
@@ -205,6 +206,7 @@ class Sudoku:
         # Check if new_puzzle is the same as original one (no more propagation is possible)
         # If it is not, try to keep propagating recursively
         if new_puzzle == puzzle:
+            self.logger.debug('No more propagation possible.')
             return new_puzzle
         else:
             self.logger.debug(
@@ -230,6 +232,7 @@ class Sudoku:
                     return row, col
         raise AlreadySolved(f'Puzzle is already solved!')
     
+    """
     def get_full_list_of_possible_numbers(self, puzzle: list) -> list:
         '''
         Returns a list of possible numbers for each space in the puzzle grid
@@ -243,25 +246,49 @@ class Sudoku:
                     raise NoValidNumbers(f'No valid numbers in row {row}, col {col}.')
                 possibles[row].append(possibles_in_space)
         return possibles
+    """
     
     def experiment(self, puzzle: list, randomize: bool = False) -> list:
         '''
         Get all possibilities for each space and experiment one at a time.
         If the experiment results in an invalid grid state, backtrack and try next number.
+            Args:
+                puzzle -> the grid to solve
+                randomize -> if this is True, when trying possible numbers, a random one will be selected.
         '''
-        if self.is_puzzle_solved(puzzle):
+        try:
+            row, col = self.get_next_empty_space(puzzle)
+        except AlreadySolved:
+            self.logger.debug(f'No more empty spaces. Puzzle solved!')
             return puzzle
-        empty_space = self.get_next_empty_space(puzzle)
+        possibles = self.get_possible_numbers_for_space(puzzle, row, col)
+        if randomize:
+            shuffle(possibles)
+        for number in possibles:
+            self.logger.debug(f'Trying {number} in ({row},{col})...')
+            puzzle[row][col] = number
+            try:
+                puzzle_after_constraint_prop = self.constraint_propagation(puzzle)
+                if self.experiment(puzzle_after_constraint_prop, randomize=randomize):
+                    return puzzle
+            except NoValidNumbers:
+                puzzle[row][col] = 0
+
+
+
+
 
 if __name__ == '__main__':
-    pass
+    #pass
     # Debug mode on with simple puzzle
     #sud = Sudoku('003020600900305001001806400008102900700000008006708200002609500800203009005010300', loglevel=logging.DEBUG)
     #solution = sud.constraint_propagation(sud.puzzle)
     
     # Debug mode on with hard puzzle
-    #sud = Sudoku('85...24..72......9..4.........1.7..23.5...9...4...........8..7..17..........36.4.', loglevel=logging.DEBUG)
-    #partial_solution = sud.constraint_propagation(sud.puzzle)
-    #notation = sud.puzzle_to_notation(partial_solution)
+    sud = Sudoku('85...24..72......9..4.........1.7..23.5...9...4...........8..7..17..........36.4.', loglevel=logging.DEBUG)
+    partial_solution = sud.constraint_propagation(sud.puzzle)
+    sud.logger.debug('Partial solution reached. Experimenting...')
+    result = sud.experiment(partial_solution)
+    
 
 

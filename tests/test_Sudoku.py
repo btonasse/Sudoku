@@ -145,6 +145,7 @@ class TestSudokuHard(unittest.TestCase):
         space = self.sud.get_next_empty_space(self.partial_solution)
         self.assertEqual(space, expected)
 
+    """
     def test_get_all_possibles(self) -> None:
         expected = [
             [[8], [5], [1, 3, 6, 9], [3, 6], [1, 6, 7, 9], [2], [4], [3, 6], [1, 3, 6, 7]],
@@ -159,3 +160,6 @@ class TestSudokuHard(unittest.TestCase):
         ]
         possibles = self.sud.get_full_list_of_possible_numbers(self.partial_solution)
         self.assertEqual(possibles, expected)
+    """
+
+    
