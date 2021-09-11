@@ -285,9 +285,6 @@ class Sudoku:
         self.solution = solution
         return self.solution
 
-    #def solve(self) ->
-
-
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
