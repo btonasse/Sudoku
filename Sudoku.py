@@ -253,9 +253,10 @@ class Sudoku:
             self.logger.debug(f'Trying {number} in ({row},{col})...')
             puzzle[row][col] = number
             try:
-                puzzle_after_constraint_prop = self.constraint_propagation(puzzle)
-                if self.experiment(puzzle_after_constraint_prop, randomize=randomize):
-                    return self.constraint_propagation(puzzle_after_constraint_prop)
+                puzzle_after_constraint_prop = self.constraint_propagation(deepcopy(puzzle))
+                puzzle_after_constraint_prop = self.experiment(puzzle_after_constraint_prop, randomize=randomize)
+                if puzzle_after_constraint_prop:
+                    return puzzle_after_constraint_prop
             except NoValidNumbers:
                 puzzle[row][col] = 0
     
