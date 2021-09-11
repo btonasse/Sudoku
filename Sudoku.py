@@ -289,15 +289,15 @@ class Sudoku:
 if __name__ == '__main__':
     pass
     # Debug mode on with simple puzzle
-    #sud = Sudoku('003020600900305001001806400008102900700000008006708200002609500800203009005010300', loglevel=logging.DEBUG)
-    #solution = sud.solve()
+    sud = Sudoku('003020600900305001001806400008102900700000008006708200002609500800203009005010300', loglevel=logging.DEBUG)
+    solution = sud.solve()
     
     # Debug mode on with hard puzzle
     #sud = Sudoku('85...24..72......9..4.........1.7..23.5...9...4...........8..7..17..........36.4.', loglevel=logging.DEBUG)
     #solution = sud.solve()
 
     # Hard puzzle, debug off
-    sud = Sudoku('85...24..72......9..4.........1.7..23.5...9...4...........8..7..17..........36.4.')
-    solution = sud.solve()
+    #sud = Sudoku('85...24..72......9..4.........1.7..23.5...9...4...........8..7..17..........36.4.')
+    #solution = sud.solve()
 
 
