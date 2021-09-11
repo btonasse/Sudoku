@@ -184,11 +184,10 @@ class Sudoku:
             1) If a given space only has one possible number, populate that number
             2) If a given row/column/region only has one possible space for a number, populate it there.
         '''
-        new_puzzle = deepcopy(puzzle)
         for row in range(9):
             for col in range(9):
-                if not new_puzzle[row][col]:
-                    possibles = self.get_possible_numbers_for_space(new_puzzle, row, col)
+                if not puzzle[row][col]:
+                    possibles = self.get_possible_numbers_for_space(puzzle, row, col)
                     if not possibles:
                         self.logger.debug(f'No valid numbers in row {row}, col {col}.')
                         raise NoValidNumbers(f'No valid numbers in row {row}, col {col}.')
@@ -196,25 +195,25 @@ class Sudoku:
                     # If a given space only has one possible number, populate that number
                     if len(possibles) == 1:
                         self.logger.debug(f'Coordinate ({row},{col}) only has one possible: {possibles[0]}')
-                        new_puzzle[row][col] = possibles[0]
+                        puzzle[row][col] = possibles[0]
                     else:
                         # If a number cannot fit anywhere else in same row/column/region only has one possible space for a number, populate it here
                         for number in possibles:
-                            if self.is_only_possible_space_for_number(new_puzzle, row, col, number):
+                            if self.is_only_possible_space_for_number(puzzle, row, col, number):
                                 self.logger.debug(f'Coordinate ({row},{col}) is only possibility for number: {number}')
-                                new_puzzle[row][col] = number
+                                puzzle[row][col] = number
                                 break
         # Check if new_puzzle is the same as original one (no more propagation is possible)
         # If it is not, try to keep propagating recursively
-        if new_puzzle == puzzle:
+        if puzzle == puzzle:
             self.logger.debug('No more propagation possible.')
-            return new_puzzle
+            return puzzle
         else:
             self.logger.debug(
                 f'New state after propagation:\n'
-                f'{self.puzzle_to_string(new_puzzle)}'
+                f'{self.puzzle_to_string(puzzle)}'
             )
-            return self.constraint_propagation(new_puzzle)
+            return self.constraint_propagation(puzzle)
     
     def is_puzzle_solved(self, puzzle: list) -> bool:
         '''
@@ -253,7 +252,7 @@ class Sudoku:
             self.logger.debug(f'Trying {number} in ({row},{col})...')
             puzzle[row][col] = number
             try:
-                puzzle_after_constraint_prop = self.constraint_propagation(puzzle)
+                puzzle_after_constraint_prop = self.constraint_propagation(deepcopy(puzzle))
                 puzzle_after_constraint_prop = self.experiment(puzzle_after_constraint_prop, randomize=randomize)
                 if puzzle_after_constraint_prop:
                     return puzzle_after_constraint_prop
@@ -295,7 +294,7 @@ if __name__ == '__main__':
     #solution = sud.solve()
 
     # Hard puzzle, debug off
-    #sud = Sudoku('85...24..72......9..4.........1.7..23.5...9...4...........8..7..17..........36.4.')
-    #solution = sud.solve()
+    sud = Sudoku('85...24..72......9..4.........1.7..23.5...9...4...........8..7..17..........36.4.')
+    solution = sud.solve()
 
 
