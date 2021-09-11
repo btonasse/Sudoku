@@ -6,6 +6,7 @@ Some examples of hard puzzles (solved in an average of 0.05s):
 `..53.....8......2..7..1.5..4....53...1..7...6..32...8..6.5....9..4....3......97..`
 
 This especially tough one is solved in 0.2s:
+
 `4.....8.5.3..........7......2.....6.....8.4......1.......6.3.7.5..2.....1.4......`
 
 ![Sudoku solver](https://github.com/btonasse/Sudoku/blob/master/demo/demo.gif)
