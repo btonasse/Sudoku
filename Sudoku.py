@@ -74,23 +74,6 @@ class Sudoku:
         output_string = '\n'.join(output)
         return output_string
 
-    def rows_to_cols(self, puzzle: list) -> list:
-        '''
-        Transpose the puzzle from a list of rows to a list of columns
-        '''
-        return list(zip(*puzzle))
-    def rows_to_regions(self, puzzle: list) -> list:
-        '''
-        Transpose the puzzle from a list of rows to a list of regions
-        '''
-        regions = []
-        for row in range(0,9,3):
-            for col in range(0,9,3):
-                new_region = []
-                for i in range(3):
-                    new_region.extend(puzzle[row+i][col:col+3])
-                regions.append(new_region)
-        return regions
                 
     def is_possible(self, puzzle: list, row: int, col: int, number: int) -> bool:
         '''
@@ -116,18 +99,6 @@ class Sudoku:
         return True
 
 
-    def get_region_index(self, row: int, col: int) -> int:
-        '''
-        Given row and column, return the index corresponding to the region a given space is in.
-        Regions are arbitrarily ordered from left to right and top to bottom
-            Args:
-                row/col -> the space coordinates
-        '''
-        region_row = row//3
-        region_col = col//3
-        region_index = region_row*3 + region_col
-        return region_index
-
     def get_possible_numbers_for_space(self, puzzle: list, row: int, col: int) -> list:
         '''
         Get a list of possible numbers for a given space.
@@ -146,31 +117,34 @@ class Sudoku:
                 possible_numbers.append(number)
         return possible_numbers
 
-    def is_only_possible_space_for_number(self, all_possibles: list, row: int, col: int, number: int) -> bool:
+    def gen_possibles(self, puzzle: list) -> list:
         '''
-        Check if a number can only be placed on the specified space by checking
-        if the number can be placed anywhere else on same row, column or region.
-            Args:
-                all_possibles -> a nested list of all possible numbers for each space
-                row/col -> reference coordinate from which to derive the row, column and region to be analyzed
-                number -> number to analyze. Is assumed to be possible number on the specified coordinate.
+        Generates a list of possible numbers for each square. rpf/cpf/regpf are flattened versions of this list organized by columns/regions, to be used with constraint propagation strategy 2.
         '''
-        flattened_row_possibles = [possible for cell in all_possibles[row] for possible in cell]
-        if flattened_row_possibles.count(number) == 1:
-            return True
+        possibles = [[[] for _ in range(9)] for _ in range(9)]
+        for rowno, row in enumerate(puzzle):
+            for colno, value in enumerate(row):
+                if not value:
+                    for number in range(1,10):
+                        if self.is_possible(puzzle, rowno, colno, number):
+                            possibles[rowno][colno].append(number)
+                else:
+                    possibles[rowno][colno] = [value]
         
-        all_possibles_cols = self.rows_to_cols(all_possibles)
-        flattened_col_possibles = [possible for cell in all_possibles_cols[col] for possible in cell]
-        if flattened_col_possibles.count(number) == 1:
-            return True
+        rpf= [[] for _ in range(9)] 
+        cpf= [[] for _ in range(9)]
+        regpf= [[] for _ in range(9)]
+        for i, row in enumerate(possibles):
+            for I, col in enumerate(row):
+                for el in col:
+                    rpf[i].append(el)
+                    cpf[I].append(el)
+                    regpf[I//3+3*(i//3)].append(el)
 
-        all_possibles_regs = self.rows_to_regions(all_possibles)
-        target_region = self.get_region_index(row, col)
-        flattened_reg_possibles = [possible for cell in all_possibles_regs[target_region] for possible in cell]
-        if flattened_reg_possibles.count(number) == 1:
-            return True
-        
-        return False
+        return possibles, rpf, cpf, regpf
+
+    def is_only_possible_space_for_number(self, all_possibles: list, row: int, col: int, number: int) -> bool:
+        pass
 
     def constraint_propagation(self, puzzle: list) -> list:
         '''
@@ -179,7 +153,8 @@ class Sudoku:
             2) If a given row/column/region only has one possible space for a number, populate it there.
         '''
         has_changed = False
-        all_possibles = self.get_full_list_of_possible_numbers(puzzle)
+        #all_possibles = self.get_full_list_of_possible_numbers(puzzle)
+        all_possibles, rpf, cpf, regpf = self.gen_possibles(puzzle)
         for row, possibles_row in enumerate(all_possibles):
             for col, possibles_in_space in enumerate(possibles_row):
                 if puzzle[row][col]:
@@ -196,7 +171,7 @@ class Sudoku:
                 # If a number cannot fit anywhere else in same row/column/region only has one possible space for a number, populate it here
                 else:
                     for number in possibles_in_space:
-                        if self.is_only_possible_space_for_number(all_possibles, row, col, number) and self.is_possible(puzzle, row, col, number):
+                        if (rpf[row].count(number) == 1 or cpf[col].count(number) == 1 or regpf[col//3+3*(row//3)].count(number) == 1) and self.is_possible(puzzle, row, col, number):
                             self.logger.debug(f'Coordinate ({row},{col}) is only possibility for number: {number}')
                             puzzle[row][col] = number
                             has_changed = True
