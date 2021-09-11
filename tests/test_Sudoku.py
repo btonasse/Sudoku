@@ -34,6 +34,18 @@ class TestSudokuSimple(unittest.TestCase):
             [8, 1, 4, 2, 5, 3, 7, 6, 9],
             [6, 9, 5, 4, 1, 7, 3, 8, 2]
         ]
+        self.possibles = [
+            [[4, 5], [4, 5, 7, 8], [3], [4, 9], [2], [1, 4, 7], [6], [5, 7, 8, 9], [5, 7]],
+            [[9], [2, 4, 6, 7, 8], [4, 7], [3], [4, 7], [5], [7, 8], [2, 7, 8], [1]],
+            [[2, 5], [2, 5, 7], [1], [8], [7, 9], [6], [4], [2, 3, 5, 7, 9], [2, 3, 5, 7]],
+            [[3, 4, 5], [3, 4, 5], [8], [1], [3, 4, 5, 6], [2], [9], [3, 4, 5, 6, 7], [3, 4, 5, 6, 7]],
+            [[7], [1, 2, 3, 4, 5, 9], [4, 9], [4, 5, 9], [3, 4, 5, 6, 9], [4], [1], [1, 3, 4, 5, 6], [8]],
+            [[1, 3, 4, 5], [1, 3, 4, 5, 9], [6], [7], [3, 4, 5, 9], [8], [2], [1, 3, 4, 5], [3, 4, 5]],
+            [[1, 3, 4], [1, 3, 4, 7], [2], [6], [4, 7, 8], [9], [5], [1, 4, 7, 8], [4, 7]],
+            [[8], [1, 4, 6, 7], [4, 7], [2], [4, 5, 7], [3], [1, 7], [1, 4, 6, 7], [9]],
+            [[4, 6], [4, 6, 7, 9], [5], [4], [1], [4, 7], [3], [2, 4, 6, 7, 8], [2, 4, 6, 7]]
+        ]
+    
     def test_a_puzzle_parsing(self) -> None:
         puzzle_string = '003020600900305001001806400008102900700000008006708200002609500800203009005010300'
         sudoku = Sudoku(puzzle_string)
@@ -87,7 +99,7 @@ class TestSudokuSimple(unittest.TestCase):
         expected = [True, False, True]
         for i in range(len(coords)):
             with self.subTest(i=i):
-                self.assertEqual(self.sud.is_only_possible_space_for_number(self.puzzle, coords[i][0], coords[i][1], numbers[i]), expected[i])
+                self.assertEqual(self.sud.is_only_possible_space_for_number(self.possibles, coords[i][0], coords[i][1], numbers[i]), expected[i])
     
     def test_full_solution_with_constraint_propagation(self) -> None:
         self.assertEqual(self.sud.constraint_propagation(self.puzzle), self.solution)
