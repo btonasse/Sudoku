@@ -270,16 +270,18 @@ class Sudoku:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('puzzle', action='store', help="Run the solver for a given puzzle. For solving a demo puzzle, pass the value 'easy'|'hard'|'hardest' instead of a puzzle.")
+    parser.add_argument('puzzle', action='store', help="Run the solver for a given puzzle. For solving a demo puzzle, pass the value 'easy'|'medium'|'hard'|'hardest' instead of a puzzle.")
     parser.add_argument('-d', '--debug', action='store_true', help='Set logger level to debug.')
     args = parser.parse_args()
 
     if args.puzzle == 'easy':
         puzzle = '003020600900305001001806400008102900700000008006708200002609500800203009005010300'
-    elif args.puzzle == 'hard':
+    elif args.puzzle == 'medium':
         puzzle = '85...24..72......9..4.........1.7..23.5...9...4...........8..7..17..........36.4.'
-    elif args.puzzle == 'hardest':
+    elif args.puzzle == 'hard':
         puzzle = '..53.....8......2..7..1.5..4....53...1..7...6..32...8..6.5....9..4....3......97..'
+    elif args.puzzle == 'hardest':
+        puzzle = '4.....8.5.3..........7......2.....6.....8.4......1.......6.3.7.5..2.....1.4......'
     else:
         puzzle = args.puzzle
     
