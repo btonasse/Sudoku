@@ -245,7 +245,7 @@ class Sudoku:
             except NoValidNumbers:
                 puzzle[row][col] = 0
     
-    def solve(self) -> list:
+    def solve(self, randomize: bool = False) -> list:
         '''
         Solve the loaded puzzle by first applying constraint propagation techniques.
         If puzzle cannot be solved like this, brute force the remaining spaces using a backtracking algorithm.
@@ -258,7 +258,7 @@ class Sudoku:
             solution = prop_result
         else:
             print('This is a tough one. Let me try guessing some numbers...')
-            solution = self.experiment(prop_result)
+            solution = self.experiment(prop_result, randomize)
 
         end_time = time.perf_counter()
         total_time = end_time - start_time
