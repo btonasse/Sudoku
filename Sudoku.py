@@ -210,17 +210,24 @@ class Sudoku:
     def get_next_space_with_least_candidates(self, puzzle: list) -> Tuple[tuple, list]:
         '''
         Instead of just getting next empty space, get next empty space with least number of candidates.
+        Return the coordinate (as a tuple) along with the list of possibles for that coordinate.
         '''
-        sorted_possibles = [{} for _ in range(8)]
+        possibles_by_length = {n: None for n in range(2,10)}
         for rowno, row in enumerate(puzzle):
             for colno, value in enumerate(row):
                 if not value:
                     possibles_for_coord = self.get_possible_numbers_for_space(puzzle, rowno, colno)
-                    sorted_possibles[len(possibles_for_coord)-2][(rowno,colno)] = possibles_for_coord
-                    
-        for dic in sorted_possibles:
-            for coord, possibles in dic.items():
-                return coord, possibles
+                    number_of_possibles = len(possibles_for_coord)
+                    # If the number of candidates is two (the minimum), there's no point in looping further
+                    if number_of_possibles == 2:
+                        return (rowno, colno), possibles_for_coord
+                    # Store just the first coordinate that has a given number of possibles
+                    if not possibles_by_length[number_of_possibles]:
+                        possibles_by_length[number_of_possibles] = ((rowno, colno), possibles_for_coord)
+        # Return the coord with lowest number of possibles that 
+        for coord in possibles_by_length.values():
+            if coord:
+                return coord 
         raise AlreadySolved(f'Puzzle is already solved!')
 
     def experiment(self, puzzle: list, itertype: str = 'sequential') -> list:
@@ -229,7 +236,7 @@ class Sudoku:
         If the experiment results in an invalid grid state, backtrack and try next number.
             Args:
                 puzzle -> the grid to solve
-                randomize -> if this is True, when trying possible numbers, a random one will be selected.
+                itertype -> the type of iteration when guessing possible numbers: 'sequential' (default), 'random' or 'reversed'.
         '''
         if self.interrupt.is_set():
             raise AlreadySolved('Another process already solved it.')
