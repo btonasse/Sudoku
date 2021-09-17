@@ -4,6 +4,7 @@ import logging
 from typing import Tuple
 import time
 import argparse
+import multiprocessing as mp
 
 class NoValidNumbers(ValueError):
     '''
@@ -25,7 +26,11 @@ class Sudoku:
         # Set up logger
         logging.basicConfig(level=loglevel)
         self.logger = logging.getLogger('Sudoku')
-        print(f'Loaded puzzle:\n{self.puzzle_to_string(self.puzzle)}')
+
+        # Set up multiprocessing events and queue
+        self.queue = mp.Queue()
+        self.interrupt = mp.Event()
+        self.solved = mp.Event()
 
     def parse_puzzle(self, puzzle_string: str) -> list:
         '''
@@ -270,21 +275,26 @@ class Sudoku:
             Args:
                 itertype: the type of iteration when guessing possible numbers: 'sequential' (default), 'random' or 'reversed'.
         '''
-        print('Trying to solving puzzle using constraint propagation...')
+        output = []
+        output.append(f'Loaded puzzle:\n{self.puzzle_to_string(self.puzzle)}')
         start_time = time.perf_counter()
         prop_result = self.constraint_propagation(deepcopy(self.puzzle))
         if self.is_puzzle_solved(prop_result):
             solution = prop_result
         else:
-            print('This is a tough one. Let me try guessing some numbers...')
-            solution = self.experiment(prop_result, itertype)
-
+            output.append('This is a tough one. I need to guess some numbers...')
+            try:
+                solution = self.experiment(prop_result, itertype)
+            except AlreadySolved: # Another process already found the solution
+                return
         end_time = time.perf_counter()
         total_time = end_time - start_time
-        print(f'Success! Puzzle solved in {total_time:.6f}s.')
-        print(f'Solution:\n{self.puzzle_to_string(solution)}')
+        output.append(f'Success! Puzzle solved in {total_time:.6f}s by process #{mp.current_process().name}.')
+        output.append(f'Solution:\n{self.puzzle_to_string(solution)}')
         self.solution = solution
-        return self.solution
+        print('\n'.join(output))
+        self.queue.put(solution)
+        return solution
 
 
 if __name__ == '__main__':
@@ -309,7 +319,25 @@ if __name__ == '__main__':
     else:
         loglevel = logging.WARNING
     
+    # Instantiate class
     sud = Sudoku(puzzle, loglevel)
-    sud.solve()
+    
+    # Use all processors to solve the puzzle, each one using one iterative method for the backtracking algorithm.
+    # Once the solution has been found, the other processes raise an AlreadySolved exception and return nothing.
+    iter_methods = ['sequential', 'reversed']
+    for i in range(mp.cpu_count()):
+        try:
+            method = iter_methods[i]
+        except IndexError:
+            method = 'random'
+        
+        name = f'{i}: {method}'
+        p = mp.Process(name=name, target=sud.solve, args=(method,))
+        p.start()
+    sud.solved.wait()
+    sud.interrupt.set()
+    solution = sud.queue.get()
+
+
 
 
