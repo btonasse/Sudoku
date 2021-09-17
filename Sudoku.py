@@ -338,6 +338,7 @@ if __name__ == '__main__':
     sud.interrupt.set()
     solution = sud.queue.get()
 
-
+    # logging currently does not work
+    # revise tests to include multiprocessing scenarios
 
 
