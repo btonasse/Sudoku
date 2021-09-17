@@ -207,26 +207,28 @@ class Sudoku:
         flattened_puzzle = [y for row in puzzle for y in row]
         return all(flattened_puzzle)
  
-    def get_next_space_with_least_candidates(self, puzzle: list, length) -> Tuple[tuple, list]:
+    def get_next_space_with_least_candidates(self, puzzle: list) -> Tuple[tuple, list]:
         '''
         Instead of just getting next empty space, get next empty space with least number of candidates.
+        Return the coordinate (as a tuple) along with the list of possibles for that coordinate.
         '''
-        #sorted_possibles = [{} for _ in range(8)]
-        is_solved=True
+        possibles_by_length = {n: None for n in range(2,10)}
         for rowno, row in enumerate(puzzle):
             for colno, value in enumerate(row):
                 if not value:
-                    is_solved=False
                     possibles_for_coord = self.get_possible_numbers_for_space(puzzle, rowno, colno)
-                    if len(possibles_for_coord) == length:
+                    number_of_possibles = len(possibles_for_coord)
+                    # If the number of candidates is two (the minimum), there's no point in looping further
+                    if number_of_possibles == 2:
                         return (rowno, colno), possibles_for_coord
-                    #sorted_possibles[len(possibles_for_coord)-2][(rowno,colno)] = possibles_for_coord
-        if is_solved:
-            raise AlreadySolved('Puzzle is already solved!')       
-        #for dic in sorted_possibles:
-        #    for coord, possibles in dic.items():
-        #        return coord, possibles
-        #raise AlreadySolved(f'Puzzle is already solved!')
+                    # Store just the first coordinate that has a given number of possibles
+                    if not possibles_by_length[number_of_possibles]:
+                        possibles_by_length[number_of_possibles] = ((rowno, colno), possibles_for_coord)
+        # Return the coord with lowest number of possibles that 
+        for coord in possibles_by_length.values():
+            if coord:
+                return coord 
+        raise AlreadySolved(f'Puzzle is already solved!')
 
     def experiment(self, puzzle: list, itertype: str = 'sequential') -> list:
         '''
@@ -234,18 +236,14 @@ class Sudoku:
         If the experiment results in an invalid grid state, backtrack and try next number.
             Args:
                 puzzle -> the grid to solve
-                randomize -> if this is True, when trying possible numbers, a random one will be selected.
+                itertype -> the type of iteration when guessing possible numbers: 'sequential' (default), 'random' or 'reversed'.
         '''
-        for i in range(2,10):
-            try:
-                coord, possibles = self.get_next_space_with_least_candidates(puzzle, i)
-                row, col = coord
-                break
-            except TypeError:
-                continue
-            except AlreadySolved:
-                self.logger.debug(f'No more empty spaces. Puzzle solved!')
-                return puzzle
+        try:
+            coord, possibles = self.get_next_space_with_least_candidates(puzzle)
+            row, col = coord
+        except AlreadySolved:
+            self.logger.debug(f'No more empty spaces. Puzzle solved!')
+            return puzzle
         if itertype == 'random':
             random.shuffle(possibles)
         elif itertype == 'reversed':
