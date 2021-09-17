@@ -207,21 +207,26 @@ class Sudoku:
         flattened_puzzle = [y for row in puzzle for y in row]
         return all(flattened_puzzle)
  
-    def get_next_space_with_least_candidates(self, puzzle: list) -> Tuple[tuple, list]:
+    def get_next_space_with_least_candidates(self, puzzle: list, length) -> Tuple[tuple, list]:
         '''
         Instead of just getting next empty space, get next empty space with least number of candidates.
         '''
-        sorted_possibles = [{} for _ in range(8)]
+        #sorted_possibles = [{} for _ in range(8)]
+        is_solved=True
         for rowno, row in enumerate(puzzle):
             for colno, value in enumerate(row):
                 if not value:
+                    is_solved=False
                     possibles_for_coord = self.get_possible_numbers_for_space(puzzle, rowno, colno)
-                    sorted_possibles[len(possibles_for_coord)-2][(rowno,colno)] = possibles_for_coord
-                    
-        for dic in sorted_possibles:
-            for coord, possibles in dic.items():
-                return coord, possibles
-        raise AlreadySolved(f'Puzzle is already solved!')
+                    if len(possibles_for_coord) == length:
+                        return (rowno, colno), possibles_for_coord
+                    #sorted_possibles[len(possibles_for_coord)-2][(rowno,colno)] = possibles_for_coord
+        if is_solved:
+            raise AlreadySolved('Puzzle is already solved!')       
+        #for dic in sorted_possibles:
+        #    for coord, possibles in dic.items():
+        #        return coord, possibles
+        #raise AlreadySolved(f'Puzzle is already solved!')
 
     def experiment(self, puzzle: list, itertype: str = 'sequential') -> list:
         '''
@@ -231,12 +236,16 @@ class Sudoku:
                 puzzle -> the grid to solve
                 randomize -> if this is True, when trying possible numbers, a random one will be selected.
         '''
-        try:
-            coord, possibles = self.get_next_space_with_least_candidates(puzzle)
-            row, col = coord
-        except AlreadySolved:
-            self.logger.debug(f'No more empty spaces. Puzzle solved!')
-            return puzzle
+        for i in range(2,10):
+            try:
+                coord, possibles = self.get_next_space_with_least_candidates(puzzle, i)
+                row, col = coord
+                break
+            except TypeError:
+                continue
+            except AlreadySolved:
+                self.logger.debug(f'No more empty spaces. Puzzle solved!')
+                return puzzle
         if itertype == 'random':
             random.shuffle(possibles)
         elif itertype == 'reversed':
