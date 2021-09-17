@@ -231,11 +231,14 @@ class Sudoku:
                 puzzle -> the grid to solve
                 randomize -> if this is True, when trying possible numbers, a random one will be selected.
         '''
+        if self.interrupt.is_set():
+            raise AlreadySolved('Another process already solved it.')
         try:
             coord, possibles = self.get_next_space_with_least_candidates(puzzle)
             row, col = coord
         except AlreadySolved:
             self.logger.debug(f'No more empty spaces. Puzzle solved!')
+            self.solved.set()
             return puzzle
         if itertype == 'random':
             random.shuffle(possibles)
