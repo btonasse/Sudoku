@@ -1,4 +1,4 @@
-from random import shuffle
+import random
 from copy import deepcopy
 import logging
 from typing import Tuple
@@ -142,7 +142,6 @@ class Sudoku:
                     by_rows[row].append(number)
                     by_cols[col].append(number)
                     by_regs[col//3+3*(row//3)].append(number)
-        
         return possibles, by_rows, by_cols, by_regs
 
     def is_only_possible_space_for_number(self, in_rows: list, in_cols: list, in_regs: list, row: int, col: int, number: int) -> bool:
@@ -207,17 +206,23 @@ class Sudoku:
         '''
         flattened_puzzle = [y for row in puzzle for y in row]
         return all(flattened_puzzle)
-
-    def get_next_empty_space(self, puzzle: list) -> Tuple[int]:
+ 
+    def get_next_space_with_least_candidates(self, puzzle: list) -> Tuple[tuple, list]:
         '''
-        Iterate through the puzzle and return the coordinates of the first empty space
+        Instead of just getting next empty space, get next empty space with least number of candidates.
         '''
-        for row in range(9):
-            for col in range(9):
-                if not puzzle[row][col]:
-                    return row, col
+        sorted_possibles = [{} for _ in range(8)]
+        for rowno, row in enumerate(puzzle):
+            for colno, value in enumerate(row):
+                if not value:
+                    possibles_for_coord = self.get_possible_numbers_for_space(puzzle, rowno, colno)
+                    sorted_possibles[len(possibles_for_coord)-2][(rowno,colno)] = possibles_for_coord
+                    
+        for dic in sorted_possibles:
+            for coord, possibles in dic.items():
+                return coord, possibles
         raise AlreadySolved(f'Puzzle is already solved!')
-       
+
     def experiment(self, puzzle: list, randomize: bool = False) -> list:
         '''
         Get all possibilities for each space and experiment one at a time.
@@ -227,19 +232,19 @@ class Sudoku:
                 randomize -> if this is True, when trying possible numbers, a random one will be selected.
         '''
         try:
-            row, col = self.get_next_empty_space(puzzle)
+            coord, possibles = self.get_next_space_with_least_candidates(puzzle)
+            row, col = coord
         except AlreadySolved:
             self.logger.debug(f'No more empty spaces. Puzzle solved!')
             return puzzle
-        possibles = self.get_possible_numbers_for_space(puzzle, row, col)
         if randomize:
-            shuffle(possibles)
+            random.shuffle(possibles)
         for number in possibles:
             self.logger.debug(f'Trying {number} in ({row},{col})...')
             puzzle[row][col] = number
             try:
                 puzzle_after_constraint_prop = self.constraint_propagation(deepcopy(puzzle))
-                puzzle_after_constraint_prop = self.experiment(puzzle_after_constraint_prop, randomize=randomize)
+                puzzle_after_constraint_prop = self.experiment(puzzle_after_constraint_prop, randomize)
                 if puzzle_after_constraint_prop:
                     return puzzle_after_constraint_prop
             except NoValidNumbers:

@@ -142,9 +142,11 @@ class TestSudokuHard(unittest.TestCase):
         self.assertEqual(partial_solution, self.partial_solution)
 
     def test_get_next_empty_space(self) -> None:
-        expected = (0,2)
-        space = self.sud.get_next_empty_space(self.partial_solution)
+        expected = (0,3)
+        expected_possibles = [3,6]
+        space, possibles = self.sud.get_next_space_with_least_candidates(self.partial_solution)
         self.assertEqual(space, expected)
+        self.assertEqual(possibles, expected_possibles)
 
     def test_experiment(self) -> None:
         solution = self.sud.experiment(self.partial_solution)
