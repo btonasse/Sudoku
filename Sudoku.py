@@ -223,7 +223,7 @@ class Sudoku:
                 return coord, possibles
         raise AlreadySolved(f'Puzzle is already solved!')
 
-    def experiment(self, puzzle: list, randomize: bool = False) -> list:
+    def experiment(self, puzzle: list, itertype: str = 'sequential') -> list:
         '''
         Get all possibilities for each space and experiment one at a time.
         If the experiment results in an invalid grid state, backtrack and try next number.
@@ -237,24 +237,28 @@ class Sudoku:
         except AlreadySolved:
             self.logger.debug(f'No more empty spaces. Puzzle solved!')
             return puzzle
-        if randomize:
+        if itertype == 'random':
             random.shuffle(possibles)
+        elif itertype == 'reversed':
+            possibles.reverse()
         for number in possibles:
             self.logger.debug(f'Trying {number} in ({row},{col})...')
             puzzle[row][col] = number
             try:
                 puzzle_after_constraint_prop = self.constraint_propagation(deepcopy(puzzle))
-                puzzle_after_constraint_prop = self.experiment(puzzle_after_constraint_prop, randomize)
+                puzzle_after_constraint_prop = self.experiment(puzzle_after_constraint_prop, itertype)
                 if puzzle_after_constraint_prop:
                     return puzzle_after_constraint_prop
             except NoValidNumbers:
                 puzzle[row][col] = 0
     
-    def solve(self, randomize: bool = False) -> list:
+    def solve(self, itertype: str = 'sequential') -> list:
         '''
         Solve the loaded puzzle by first applying constraint propagation techniques.
         If puzzle cannot be solved like this, brute force the remaining spaces using a backtracking algorithm.
         To speed up this process, after each 'guess' the constraint propagation algorithm is applied again.
+            Args:
+                itertype: the type of iteration when guessing possible numbers: 'sequential' (default), 'random' or 'reversed'.
         '''
         print('Trying to solving puzzle using constraint propagation...')
         start_time = time.perf_counter()
@@ -263,7 +267,7 @@ class Sudoku:
             solution = prop_result
         else:
             print('This is a tough one. Let me try guessing some numbers...')
-            solution = self.experiment(prop_result, randomize)
+            solution = self.experiment(prop_result, itertype)
 
         end_time = time.perf_counter()
         total_time = end_time - start_time
