@@ -4,7 +4,8 @@ import logging
 from typing import Tuple
 import time
 import argparse
-
+from utils.timer import timefunc
+from utils.logger import create_logger
 class NoValidNumbers(ValueError):
     '''
     Error for when there are no valid numbers for a space
@@ -26,8 +27,7 @@ class Sudoku:
         self.solution = None
         
         # Set up logger
-        logging.basicConfig(level=loglevel)
-        self.logger = logging.getLogger('Sudoku')
+        self.logger = create_logger('Sudoku', 'debug_logs/lastrun.log', loglevel=loglevel)
 
     def parse_puzzle(self, puzzle_string: str) -> list:
         '''
@@ -261,67 +261,38 @@ class Sudoku:
             except NoValidNumbers:
                 puzzle[row][col] = 0
     
-    def solve(self, itertype: str = 'sequential') -> float:
+    def solve(self, itertype: str = 'sequential') -> list:
         '''
         Solve the loaded puzzle by first applying constraint propagation techniques.
         If puzzle cannot be solved like this, brute force the remaining spaces using a backtracking algorithm.
         To speed up this process, after each 'guess' the constraint propagation algorithm is applied again.
             Args:
                 itertype: the type of iteration when guessing possible numbers: 'sequential' (default), 'random' or 'reversed'.
-        Solution is stored in self.solution. The method itself returns the elapsed solution time.
+        Solution is stored in self.solution and also returned as a list
         '''
-        print(f'Loaded puzzle:\n{self.puzzle_to_string(self.puzzle)}')
-        print('Trying to solving puzzle using constraint propagation...')
+        self.logger.info(f'Loaded puzzle:\n{self.puzzle_to_string(self.puzzle)}')
+        self.logger.info('Trying to solving puzzle using constraint propagation...')
         start_time = time.perf_counter()
         prop_result = self.constraint_propagation(deepcopy(self.puzzle))
         if self.is_puzzle_solved(prop_result):
             solution = prop_result
         else:
-            print('This is a tough one. Let me try guessing some numbers...')
+            self.logger.info('This is a tough one. Let me try guessing some numbers...')
             solution = self.experiment(prop_result, itertype)
 
         end_time = time.perf_counter()
         total_time = end_time - start_time
-        print(f'Success! Puzzle solved in {total_time:.6f}s.')
-        print(f'Solution:\n{self.puzzle_to_string(solution)}')
+        self.logger.info(f'Success! Puzzle solved in {total_time:.6f}s.')
+        self.logger.info(f'Solution:\n{self.puzzle_to_string(solution)}')
         self.solution = solution
-        return total_time
+        return solution
 
-    def get_solution_string(self, timetaken: float) -> str:
+    def build_puzzle_output_string(self, timetaken: float, no_solution: float) -> str:
         '''
-        Take self.puzzle and self.solution and return them as a string.
+        Take self.puzzle (and potentially self.solution) and return them as a string.
             Args:
                 timetaken: time in seconds that the puzzle took to solve.
-        Example:
-            Puzzle: ..89.7.5..7..4..1..6.5.1..763....9....9...8....74...357..6.3.2..4..7..6...61.47..
-            +-------+-------+-------+
-            |     8 | 9   7 |   5   |
-            |   7   |   4   |   1   |
-            |   6   | 5   1 |     7 |
-            +-------+-------+-------+
-            | 6 3   |       | 9     |
-            |     9 |       | 8     |
-            |     7 | 4     |   3 5 |
-            +-------+-------+-------+
-            | 7     | 6   3 |   2   |
-            |   4   |   7   |   6   |
-            |     6 | 1   4 | 7     |
-            +-------+-------+-------+
-            Solution: 418967253572348619963521487634815972159732846287496135791683524845279361326154798
-            Solved in 0.065703s
-            +-------+-------+-------+
-            | 4 1 8 | 9 6 7 | 2 5 3 |
-            | 5 7 2 | 3 4 8 | 6 1 9 |
-            | 9 6 3 | 5 2 1 | 4 8 7 |
-            +-------+-------+-------+
-            | 6 3 4 | 8 1 5 | 9 7 2 |
-            | 1 5 9 | 7 3 2 | 8 4 6 |
-            | 2 8 7 | 4 9 6 | 1 3 5 |
-            +-------+-------+-------+
-            | 7 9 1 | 6 8 3 | 5 2 4 |
-            | 8 4 5 | 2 7 9 | 3 6 1 |
-            | 3 2 6 | 1 5 4 | 7 9 8 |
-            +-------+-------+-------+
+                no_solution: if set, only the puzzle will be output and the time it took to generate 
         '''
         output = []
         puzzle_notation = self.puzzle_to_notation(self.puzzle)
@@ -329,12 +300,14 @@ class Sudoku:
         puzzle_as_string = self.puzzle_to_string(self.puzzle)
         output.append(puzzle_as_string)
         solution_notation = self.puzzle_to_notation(self.solution)
-        output.append(f'Solution: {solution_notation}')
-        output.append(f'Solved in {timetaken:.6f}s')
-        solution_as_string = self.puzzle_to_string(self.solution)
-        output.append(solution_as_string)
+        if no_solution:
+            output.insert(-1, f'Generated in {timetaken:.6f}s')
+        else:
+            output.append(f'Solution: {solution_notation}')
+            output.append(f'Solved in {timetaken:.6f}s')
+            solution_as_string = self.puzzle_to_string(self.solution)
+            output.append(solution_as_string)
         return '\n'.join(output)
-
     
     def generate_valid_board(self) -> list:
         '''
@@ -409,16 +382,16 @@ class Sudoku:
         '''
         Master method to generate a valid and unique puzzle.
         '''
-        print(f'Looking for a unique puzzle with {clues} clues...')
+        self.logger.info(f'Looking for a unique puzzle with {clues} clues...')
         start = time.perf_counter()
         puzzle = self.propose_puzzle(clues)
         end = time.perf_counter()
-        print(f'Generated puzzle in {end-start:.6f}s:')
-        print(self.puzzle_to_string(self.puzzle))
-        print(self.puzzle_to_notation(self.puzzle))
-        print('Solution:')
-        print(self.puzzle_to_string(self.solution))
-        print(self.puzzle_to_notation(self.solution))
+        self.logger.info(f'Generated puzzle in {end-start:.6f}s:')
+        self.logger.info(self.puzzle_to_string(self.puzzle))
+        self.logger.info(self.puzzle_to_notation(self.puzzle))
+        self.logger.info('Solution:')
+        self.logger.info(self.puzzle_to_string(self.solution))
+        self.logger.info(self.puzzle_to_notation(self.solution))
         return puzzle
 
 
@@ -452,19 +425,47 @@ def main(args: argparse.Namespace) -> None:
             puzzle = args.puzzle
                
         sud = Sudoku(puzzle, loglevel)
-        sud.solve()
+        print(f'Loaded puzzle:\n{sud.puzzle_to_string(sud.puzzle)}')
+        runtime = timefunc(sud.solve)
+        print(f'Puzzle solved in {runtime:.6f}s.')
+        print(f'Solution:\n{sud.puzzle_to_string(sud.solution)}')
     
     elif args.file:
+        print(f'Solving puzzles from file {args.file.name}...')
+
         with args.file as source:
             puzzles = source.read().split('\n')
-        #with 'solved_puzzles' #todo timestamping
-        for puzzle in puzzles:
-            sud = Sudoku(puzzle, loglevel=loglevel)
+
+        output_file_path = time.strftime('solved_puzzles/puzzles%Y%m%d-%H%M.txt', time.localtime(time.time()))
+
+        with open(output_file_path, 'w') as outfile:
+            total_runtime = 0
+            outfile.write(f'Solved puzzles from file {args.file.name}:')
+            for i, puzzle in enumerate(puzzles):
+                print(f'Solving puzzle {i+1}: {puzzle}', end='  ', flush=True)
+                sud = Sudoku(puzzle, loglevel=loglevel)
+                runtime = timefunc(sud.solve)
+                print(f'(Done in {runtime:.6f}s)')
+                outfile.write('\n\n' + sud.build_puzzle_output_string(runtime, False))
+                total_runtime += runtime
+        print(f'Solved {i+1} puzzles in {total_runtime:.6f}s. Output file: {output_file_path}')
 
     else:
-        sud = Sudoku(loglevel = logging.WARNING)
-        sud.generate(args.generate)
-
+        clues, number_of_puzzles = args.generate
+        print(f'Generating {number_of_puzzles} puzzles with {clues} clues...')
+        
+        output_file_path = time.strftime('generated_puzzles/puzzles%Y%m%d-%H%M.txt', time.localtime(time.time()))
+        with open(output_file_path, 'w') as outfile:
+            total_runtime = 0
+            outfile.write(f'Puzzles generated with {clues} clues:')
+            for i in range(number_of_puzzles):
+                print(f'Generating puzzle {i+1}...', end='  ', flush=True)
+                sud = Sudoku(loglevel = logging.WARNING)
+                runtime = timefunc(sud.generate, clues)
+                print(f'(Done in {runtime:.6f}s)')
+                outfile.write('\n\n' + sud.build_puzzle_output_string(runtime, True))
+                total_runtime += runtime
+        print(f'Generated {i+1} puzzles in {total_runtime:.6f}s. Output file: {output_file_path}')
 
 
 
