@@ -24,7 +24,7 @@ optional arguments:
                         Generate a puzzle with a given number of clues.
   -f [FILE], --file [FILE]
                         Solve puzzles from given file. Output also goes to a file.
-  -d, --debug           Set logger level to debug. Has no effect when generating a puzzle.
+  -d, --debug           Set logger level to debug. Has no effect when generating a puzzle or solving multiple puzzles.
 ```
 
 ![Sudoku solver](https://github.com/btonasse/Sudoku/blob/master/demo/demo.gif)
