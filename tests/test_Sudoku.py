@@ -170,8 +170,34 @@ class TestGenPuzzle(unittest.TestCase):
     '''
     def setUp(self) -> None:
         random.seed(627834523645)
-        #Todo
+        self.sud = Sudoku()
+        self.generated_puzzle = [
+            [0, 0, 0, 0, 0, 1, 0, 0, 2],
+            [0, 0, 0, 0, 6, 0, 0, 0, 3], 
+            [1, 0, 0, 0, 9, 2, 8, 0, 0], 
+            [0, 0, 0, 5, 0, 0, 0, 7, 9], 
+            [7, 1, 4, 0, 0, 6, 0, 2, 5], 
+            [3, 0, 5, 2, 1, 0, 6, 8, 4], 
+            [0, 0, 6, 1, 2, 8, 0, 9, 0], 
+            [0, 8, 0, 0, 0, 0, 0, 0, 0], 
+            [2, 0, 0, 7, 3, 0, 0, 6, 8]
+        ]
 
+    def test_generate_valid_board(self) -> None:
+        expected = [
+            [6, 5, 8, 3, 7, 1, 9, 4, 2],
+            [4, 2, 9, 8, 6, 5, 7, 1, 3],
+            [1, 7, 3, 4, 9, 2, 8, 5, 6],
+            [8, 6, 2, 5, 4, 3, 1, 7, 9],
+            [7, 1, 4, 9, 8, 6, 3, 2, 5],
+            [3, 9, 5, 2, 1, 7, 6, 8, 4],
+            [5, 3, 6, 1, 2, 8, 4, 9, 7],
+            [9, 8, 7, 6, 5, 4, 2, 3, 1],
+            [2, 4, 1, 7, 3, 9, 5, 6, 8]
+        ]
+        board = self.sud.generate_valid_board()
+        self.assertEqual(board, expected)
+    
     def not_impl(self):
         raise NotImplementedError
 
