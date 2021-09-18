@@ -9,4 +9,18 @@ This especially tough one is solved in 0.2s:
 
 `4.....8.5.3..........7......2.....6.....8.4......1.......6.3.7.5..2.....1.4......`
 
+## Command line usage
+
+```
+Sudoku.py [-h] (-p PUZZLE | -g CLUES) [-d]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -p PUZZLE, --puzzle PUZZLE
+                        Run the solver for a given puzzle. For solving a demo puzzle, pass the value 'easy'|'medium'|'hard'|'hardest' instead of a puzzle.
+  -g CLUES, --generate CLUES
+                        Generate a puzzle with a given number of clues.
+  -d, --debug           Set logger level to debug. Has no effect when generating a puzzle.
+```
+
 ![Sudoku solver](https://github.com/btonasse/Sudoku/blob/master/demo/demo.gif)
