@@ -353,7 +353,7 @@ class Sudoku:
             else:
                 puzzle = deepcopy(backup)
             if loops == 100:
-                print('No unique puzzle found after 100 attempts. Trying a new board...')
+                self.logger.info('No unique puzzle found after 100 attempts. Trying a new board...')
                 return self.propose_puzzle(clues)
             loops += 1
         self.puzzle = puzzle
