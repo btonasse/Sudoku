@@ -4,6 +4,7 @@ Usage:
 python -m unittest discover -s tests -v -b
 '''
 import unittest
+import random
 from Sudoku import Sudoku
 
 class TestSudokuSimple(unittest.TestCase):
@@ -152,4 +153,25 @@ class TestSudokuHard(unittest.TestCase):
         solution = self.sud.experiment(self.partial_solution)
         self.assertEqual(solution, self.solution)
 
+class TestRandomExperiment(unittest.TestCase):
+    '''
+    Tests using the 'random' iteration method for the backtracking algorithm.
+    '''
+    def setUp(self) -> None:
+        random.seed(627834523645)
+        #Todo
+
+    def not_impl(self):
+        raise NotImplementedError
+
+class TestGenPuzzle(unittest.TestCase):
+    '''
+    Tests for the puzzle generating functionality
+    '''
+    def setUp(self) -> None:
+        random.seed(627834523645)
+        #Todo
+
+    def not_impl(self):
+        raise NotImplementedError
 

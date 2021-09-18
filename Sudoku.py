@@ -18,14 +18,16 @@ class Sudoku:
     Sudoku solver/generator. Uses a mixture of constraint propagation/backtracking to solve puzzles.
     # Todo usage
     '''
-    def __init__(self, puzzle_string, loglevel=logging.WARNING) -> None:
-        self.puzzle = self.parse_puzzle(puzzle_string)
+    def __init__(self, puzzle_string: str = None, loglevel: int = logging.WARNING) -> None:
+        if puzzle_string:
+            self.puzzle = self.parse_puzzle(puzzle_string)
+        else:
+            self.puzzle = None
         self.solution = None
         
         # Set up logger
         logging.basicConfig(level=loglevel)
         self.logger = logging.getLogger('Sudoku')
-        print(f'Loaded puzzle:\n{self.puzzle_to_string(self.puzzle)}')
 
     def parse_puzzle(self, puzzle_string: str) -> list:
         '''
@@ -267,6 +269,7 @@ class Sudoku:
             Args:
                 itertype: the type of iteration when guessing possible numbers: 'sequential' (default), 'random' or 'reversed'.
         '''
+        print(f'Loaded puzzle:\n{self.puzzle_to_string(self.puzzle)}')
         print('Trying to solving puzzle using constraint propagation...')
         start_time = time.perf_counter()
         prop_result = self.constraint_propagation(deepcopy(self.puzzle))
@@ -283,30 +286,122 @@ class Sudoku:
         self.solution = solution
         return self.solution
 
+    def generate_valid_board(self) -> list:
+        '''
+        Generates a random valid Sudoku board. Populates self.solution with the result.
+        '''
+        board = [[0 for _ in range(9)] for _ in range(9)]
+        solution = self.experiment(board, itertype='random')
+        self.solution = solution
+        return solution
+
+    def remove_space(self, board) -> list: 
+        '''
+        Removes a random number from a board and then return the new board state.
+        '''
+        puzzle = deepcopy(board)
+        while True:
+            row = random.randint(0,8)
+            col = random.randint(0,8)
+            if not puzzle[row][col]:
+                continue
+            puzzle[row][col] = 0
+            return puzzle
+
+    def propose_puzzle(self, clues: int = 35) -> list:
+        '''
+        Looks for a valid unique puzzle with the specified number of clues.
+        This is a recursive function that follows the following workflow:
+        1) Generate a full random board via self.experiment
+        2) Remove random space
+        3) Try to solve the new board state many times. If more than one solution found, go back to step 1.
+        '''
+        toremove = 81-clues
+        puzzle = self.generate_valid_board()
+        loops = 0
+        while toremove > 0:
+            backup = deepcopy(puzzle)
+            puzzle = self.remove_space(puzzle)
+            if self.has_unique_solution(puzzle):
+                toremove -= 1
+                continue
+            else:
+                puzzle = deepcopy(backup)
+            if loops == 100:
+                print('No unique puzzle found after 100 attempts. Trying a new board...')
+                return self.propose_puzzle(clues)
+            loops += 1
+        self.puzzle = puzzle
+        return puzzle
+    
+    def has_unique_solution(self, puzzle: list, max_tries: int = 100) -> bool:
+        '''
+        Checks if a given puzzle has a unique solution.
+            Args:
+                puzzle -> the current puzzle state to check
+                max_tries -> max number of attempts before deciding that the puzzle is unique
+        '''
+        solutions = set()
+        tries = 0
+        while tries < max_tries:
+            partial_solution = self.constraint_propagation(deepcopy(puzzle))
+            new_solution = self.experiment(partial_solution, itertype='random')
+            as_tuple = tuple([tuple(row) for row in new_solution]) # List is not hashable
+            solutions.add(as_tuple)
+            if len(solutions) > 1:
+                return False
+            tries += 1
+        return True
+
+    def generate(self, clues: int = 35) -> list:
+        '''
+        Master method to generate a valid and unique puzzle.
+        '''
+        print(f'Looking for a unique puzzle with {clues} clues...')
+        start = time.perf_counter()
+        puzzle = self.propose_puzzle(clues)
+        end = time.perf_counter()
+        print(f'Generated puzzle in {end-start:.6f}s:')
+        print(self.puzzle_to_string(self.puzzle))
+        print(self.puzzle_to_notation(self.puzzle))
+        print('Solution:')
+        print(self.puzzle_to_string(self.solution))
+        print(self.puzzle_to_notation(self.solution))
+        return puzzle
+
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('puzzle', action='store', help="Run the solver for a given puzzle. For solving a demo puzzle, pass the value 'easy'|'medium'|'hard'|'hardest' instead of a puzzle.")
-    parser.add_argument('-d', '--debug', action='store_true', help='Set logger level to debug.')
+    mex = parser.add_mutually_exclusive_group(required=True)
+    mex.add_argument('-p', '--puzzle', action='store', help="Run the solver for a given puzzle. For solving a demo puzzle, pass the value 'easy'|'medium'|'hard'|'hardest' instead of a puzzle.")
+    mex.add_argument('-g', '--generate', action='store', type=int, metavar='CLUES', help='Generate a puzzle with a given number of clues.')
+    parser.add_argument('-d', '--debug', action='store_true', help='Set logger level to debug. Has no effect when generating a puzzle.')
     args = parser.parse_args()
 
-    if args.puzzle == 'easy':
-        puzzle = '003020600900305001001806400008102900700000008006708200002609500800203009005010300'
-    elif args.puzzle == 'medium':
-        puzzle = '85...24..72......9..4.........1.7..23.5...9...4...........8..7..17..........36.4.'
-    elif args.puzzle == 'hard':
-        puzzle = '..53.....8......2..7..1.5..4....53...1..7...6..32...8..6.5....9..4....3......97..'
-    elif args.puzzle == 'hardest':
-        puzzle = '4.....8.5.3..........7......2.....6.....8.4......1.......6.3.7.5..2.....1.4......'
+
+    if args.puzzle:
+        if args.puzzle == 'easy':
+            puzzle = '003020600900305001001806400008102900700000008006708200002609500800203009005010300'
+        elif args.puzzle == 'medium':
+            puzzle = '85...24..72......9..4.........1.7..23.5...9...4...........8..7..17..........36.4.'
+        elif args.puzzle == 'hard':
+            puzzle = '..53.....8......2..7..1.5..4....53...1..7...6..32...8..6.5....9..4....3......97..'
+        elif args.puzzle == 'hardest':
+            puzzle = '4.....8.5.3..........7......2.....6.....8.4......1.......6.3.7.5..2.....1.4......'
+        else:
+            puzzle = args.puzzle
+        
+        if args.debug:
+            loglevel = logging.DEBUG
+        else:
+            loglevel = logging.WARNING
+        
+        sud = Sudoku(puzzle, loglevel)
+        sud.solve()
+
     else:
-        puzzle = args.puzzle
-    
-    if args.debug:
-        loglevel = logging.DEBUG
-    else:
-        loglevel = logging.WARNING
-    
-    sud = Sudoku(puzzle, loglevel)
-    sud.solve()
+        sud = Sudoku()
+        sud.generate(args.generate)
 
 
