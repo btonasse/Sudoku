@@ -198,6 +198,10 @@ class TestGenPuzzle(unittest.TestCase):
         board = self.sud.generate_valid_board()
         self.assertEqual(board, expected)
     
-    def not_impl(self):
-        raise NotImplementedError
+    def test_has_unique_solution(self) -> None:
+        self.assertTrue(self.sud.has_unique_solution(self.generated_puzzle))
+
+    def test_propose_puzzle(self) -> None:
+        proposed = self.sud.propose_puzzle(35)
+        self.assertEqual(proposed, self.generated_puzzle)
 
