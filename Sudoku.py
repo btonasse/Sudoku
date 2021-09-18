@@ -403,7 +403,7 @@ def main(args: argparse.Namespace) -> None:
             args.puzzle: a 81-long string of characters in Sudoku notation. If not provided, a puzzle will be generated.
             args.file: if set, solve puzzles from given file and output solutions to a timestamped file in the solved_puzzles subdir.
                 Does nothing when generating (puzzles are output to file by default).
-            args.debug: If set, loglevel = DEBUG. Does nothing when generating puzzles (log level will always be WARNING).
+            args.debug: If set, loglevel = DEBUG. Does nothing when generating puzzles or solving multiple puzzles (log level will always be WARNING).
             args.generate: if generating a puzzle, this is a list containning clues and number of puzzles to generate.
                 Puzzles are saved in a timestamped file in generated_puzzles subdir
     '''
@@ -443,7 +443,7 @@ def main(args: argparse.Namespace) -> None:
             outfile.write(f'Solved puzzles from file {args.file.name}:')
             for i, puzzle in enumerate(puzzles):
                 print(f'Solving puzzle {i+1}: {puzzle}', end='  ', flush=True)
-                sud = Sudoku(puzzle, loglevel=loglevel)
+                sud = Sudoku(puzzle, loglevel = logging.WARNING)
                 runtime = timefunc(sud.solve)
                 print(f'(Done in {runtime:.6f}s)')
                 outfile.write('\n\n' + sud.build_puzzle_output_string(runtime, False))
