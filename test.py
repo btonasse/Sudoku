@@ -1,27 +1,57 @@
 from copy import deepcopy
 from Sudoku import Sudoku, NoValidNumbers, AlreadySolved
-import typing
+from utils.logger import create_logger
 import logging
 import random
 import time
 import argparse
+import multiprocessing as mp
 
 class test(Sudoku):
     def __init__(self, puzzle_string: str = None, loglevel: int = logging.WARNING) -> None:
-        super().__init__(puzzle_string=puzzle_string, loglevel=loglevel)
-        self.possibles = self.get_list_of_possible_numbers()
+        # Set up logger
+        self.logger = create_logger('Sudoku', 'debug_logs/lastrun.log', loglevel=loglevel)
+        
+        if puzzle_string:
+            self.puzzle = self.parse_puzzle(puzzle_string)
+            self.logger.info(f'Loaded puzzle:\n{self.puzzle_to_string(self.puzzle)}')
+        else:
+            self.puzzle = [[0 for _ in range(9)] for _ in range(9)]
         self.solution = deepcopy(self.puzzle)
+        self.possibles = self.get_list_of_possible_numbers()
     
+    def is_possible(self, row: int, col: int, number: int) -> bool:
+        '''
+        Check if a number can be entered in a given space.
+            Args:
+                row/col -> the space coordinates
+                number -> the number being tested
+        '''
+        # Check if space already has a number
+        if self.solution[row][col]:
+            return False
+        for i in range(9):
+            if self.solution[row][i] == number:
+                return False
+            if self.solution[i][col] == number:
+                return False
+            # Check in region
+            root_row = (row//3)*3
+            root_col = (col//3)*3
+            if number in self.solution[root_row+i//3][root_col:root_col+3]:
+                return False
+        return True
+
     def get_list_of_possible_numbers(self) -> list:
         '''
-        test
+        Generates a nested list of possible numbers for each square.
         '''
         possibles = [[[] for _ in range(9)] for _ in range(9)]
         for rowno, row in enumerate(self.puzzle):
             for colno, value in enumerate(row):
                 if not value:
                     for number in range(1,10):
-                        if self.is_possible(self.puzzle, rowno, colno, number):
+                        if self.is_possible(rowno, colno, number):
                             possibles[rowno][colno].append(number)
                 else:
                     possibles[rowno][colno] = [value]
@@ -29,23 +59,24 @@ class test(Sudoku):
 
     def update_possibles(self, number: int, space: tuple) -> list:
         '''
-        test
+        Update self.possibles after a number is added to a space.
         '''
         target_r, target_c = space
-        for row, row_possibles in enumerate(self.possibles):
-            for col, possibles in enumerate(row_possibles):
+        for row in range(9):
+            for col in range(9):
                 if row == target_r and col == target_c:
-                    possibles = [number]
+                    self.possibles[row][col] = [number]
                 elif row == target_r or col == target_c or (row//3 == target_r//3 and col//3 == target_c//3):
                     try:
-                        possibles.remove(number)
+                        self.possibles[row][col].remove(number)
                     except ValueError:
                         pass
         return self.possibles
                 
     def is_only_possible_space_for_number(self, number: int, space: tuple) -> bool:
         '''
-        test
+        Constraing propagation strategy 2:
+        Check if a number cannot fit anywhere else in the row, col or region of a given coordinate.
         '''
         target_r, target_c = space
         in_row = in_col = in_reg = 0
@@ -63,7 +94,9 @@ class test(Sudoku):
 
     def constraint_propagation(self) -> list:
         '''
-        test
+        Recursive method to populate spaces using the following constraint propagation strategies:
+            1) If a given space only has one possible number, populate that number
+            2) If a given row/column/region only has one possible space for a number, populate it there.
         '''
         has_changed = False
         for row in range(9):
@@ -76,27 +109,28 @@ class test(Sudoku):
                     self.logger.debug(f'No valid numbers in row {row}, col {col}.')
                     raise NoValidNumbers(f'No valid numbers in row {row}, col {col}.')
 
+                # If a given space only has one possible number, populate that number
                 if len(self.possibles[row][col]) == 1:
                     selected_number = self.possibles[row][col][0]
                     self.logger.debug(f'Coordinate ({row},{col}) only has one possible: {selected_number}')
                     need_update = True
-
+                # If a number cannot fit anywhere else in same row/column/region only has one possible space for a number, populate it here
                 else:
                     for possible in self.possibles[row][col]:
                         if self.is_only_possible_space_for_number(possible, (row, col)):
                             selected_number = possible
                             self.logger.debug(f'Coordinate ({row},{col}) is only possibility for number: {selected_number}')
                             need_update = True
-
+                # Update self.possibles if a space has been populated
                 if need_update:
                     self.solution[row][col] = selected_number
                     self.update_possibles(selected_number, (row, col))
                     has_changed = True
-        
+        # Check if new_puzzle is the same as original one (no more propagation is possible)
+        # If it is not, try to keep propagating recursively
         if not has_changed:
             self.logger.debug('No more propagation possible.')
             return self.solution
-        
         else:
             self.logger.debug(
                 f'New state after propagation:\n'
@@ -105,6 +139,9 @@ class test(Sudoku):
             return self.constraint_propagation()
     
     def get_next_space_with_least_candidates(self) -> tuple:
+        '''
+        Instead of just getting next empty space, get next empty space with least number of candidates.
+        '''
         possibles_by_length = {n: None for n in range(2,10)}
         for row, row_possibles in enumerate(self.possibles):
             for col, possibles in enumerate(row_possibles):
@@ -122,10 +159,14 @@ class test(Sudoku):
                 return coord 
         raise AlreadySolved(f'Puzzle is already solved!')
 
-
     def solve(self, itertype: str = 'sequential') -> list:
         '''
-        test
+        Solve the loaded puzzle by first applying constraint propagation techniques.
+        If puzzle cannot be solved like this, brute force the remaining spaces using a backtracking algorithm.
+        To speed up this process, after each 'guess' the constraint propagation algorithm is applied again.
+            Args:
+                itertype: the type of iteration when guessing possible numbers: 'sequential' (default), 'random' or 'reversed'.
+        Solution is stored in self.solution and also returned as a list
         '''
         try:
             self.constraint_propagation()
@@ -136,6 +177,8 @@ class test(Sudoku):
             possibles = self.possibles[row][col]
         except AlreadySolved:
             self.logger.debug(f'No more empty spaces. Puzzle solved!')
+            self.logger.info(f'Puzzle solved by {mp.current_process().name}')
+            self.logger.info(f'Solution:\n{self.puzzle_to_string(self.solution)}')
             return self.solution
         
         if itertype == 'random':
@@ -150,7 +193,7 @@ class test(Sudoku):
             self.solution[row][col] = number
             self.update_possibles(number, (row, col))
             if self.solve(itertype):
-                return True
+                return self.solution
             self.solution = deepcopy(backup_solution)
             self.possibles = deepcopy(backup_possibles)
 
@@ -169,6 +212,7 @@ def solve_puzzle(puzzle_index: int, puzzle: str, loglevel: int) -> str:
     sud.solve()
     end = time.perf_counter()
     runtime = end-start
+    sud.logger.info(f'Elapsed time: {runtime:.6f}s')
     output = '\n\n' + sud.build_puzzle_output_string(runtime, False)
     print(f'Puzzle {puzzle_index} done ({runtime:.6f}s)')
     return output
