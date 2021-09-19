@@ -1,5 +1,4 @@
 import logging
-import logging.handlers
 
 def create_logger(name: str, filepath: str, loglevel: int = logging.WARNING) -> logging.Logger:
     '''
@@ -13,16 +12,17 @@ def create_logger(name: str, filepath: str, loglevel: int = logging.WARNING) -> 
     logger.setLevel(loglevel)
 
     # Formatter
-    formatter = logging.Formatter('%(name)s:%(levelname)s: %(message)s')
+    console_formatter = logging.Formatter('%(levelname)s: %(message)s')
+    file_formatter = logging.Formatter('%(asctime)s:%(levelname)s: %(message)s')
 
     # Handlers
-    file_handler = logging.handlers.RotatingFileHandler(filepath, mode='w', encoding='utf-8', maxBytes=1000000, backupCount=10)
-    file_handler.setFormatter(formatter)
+    file_handler = logging.FileHandler(filepath, mode='w', encoding='utf-8')
+    file_handler.setFormatter(file_formatter)
     file_handler.setLevel(loglevel)
     logger.addHandler(file_handler)
 
     console_handler = logging.StreamHandler()
-    console_handler.setFormatter(formatter)
+    console_handler.setFormatter(console_formatter)
     console_handler.setLevel(max(loglevel, logging.WARNING))
     logger.addHandler(console_handler)
 
