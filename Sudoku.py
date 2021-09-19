@@ -5,6 +5,7 @@ from typing import Tuple
 import time
 import argparse
 import multiprocessing as mp
+import queue
 
 from utils.timer import timefunc
 from utils.logger import create_logger
@@ -32,9 +33,7 @@ class Sudoku:
         self.logger = create_logger('Sudoku', 'debug_logs/lastrun.log', loglevel=loglevel)
 
         # Set up multiprocessing events and queue
-        self.queue = mp.Queue()
-        self.interrupt = mp.Event()
-        self.solved = mp.Event()
+        self.queue = mp.Queue(maxsize=1)
 
     def parse_puzzle(self, puzzle_string: str) -> list:
         '''
@@ -174,6 +173,8 @@ class Sudoku:
         To avoid the overhead of generating the list of possible numbers every time a new space is filled,
         self.is_possible() is called instead right before insertion to make sure it's a valid number.
         '''
+        if not self.queue.empty():
+            raise AlreadySolved('Another process already solved this puzzle.')
         has_changed = False
         all_possibles, by_rows, by_cols, by_regs = self.get_list_of_possible_numbers(puzzle)
         for row, possibles_row in enumerate(all_possibles):
@@ -247,14 +248,11 @@ class Sudoku:
                 puzzle -> the grid to solve
                 itertype -> the type of iteration when guessing possible numbers: 'sequential' (default), 'random' or 'reversed'.
         '''
-        if self.interrupt.is_set():
-            raise AlreadySolved('Another process already solved it.')
         try:
             coord, possibles = self.get_next_space_with_least_candidates(puzzle)
             row, col = coord
         except AlreadySolved:
             self.logger.debug(f'No more empty spaces. Puzzle solved!')
-            self.solved.set()
             return puzzle
         if itertype == 'random':
             random.shuffle(possibles)
@@ -283,19 +281,29 @@ class Sudoku:
         self.logger.info(f'Loaded puzzle:\n{self.puzzle_to_string(self.puzzle)}')
         self.logger.info('Trying to solving puzzle using constraint propagation...')
         start_time = time.perf_counter()
-        prop_result = self.constraint_propagation(deepcopy(self.puzzle))
-        if self.is_puzzle_solved(prop_result):
-            solution = prop_result
-        else:
-            self.logger.info('This is a tough one. Let me try guessing some numbers...')
-            solution = self.experiment(prop_result, itertype)
-
-        end_time = time.perf_counter()
-        total_time = end_time - start_time
-        self.logger.info(f'Success! Puzzle solved in {total_time:.6f}s.')
-        self.logger.info(f'Solution:\n{self.puzzle_to_string(solution)}')
-        self.solution = solution
-        return solution
+        try:
+            prop_result = self.constraint_propagation(deepcopy(self.puzzle))
+            if self.is_puzzle_solved(prop_result):
+                solution = prop_result
+            else:
+                self.logger.info('This is a tough one. Let me try guessing some numbers...')
+                solution = self.experiment(prop_result, itertype)
+        except AlreadySolved:
+            self.logger.info(f'{mp.current_process().name}: puzzle solved by another process')
+            return
+        try:
+            self.logger.info(f'Puzzle solved by {mp.current_process().name}')
+            end_time = time.perf_counter()
+            total_time = end_time - start_time
+            self.queue.put_nowait((solution, total_time))
+            self.logger.info(f'Success! Puzzle solved in {total_time:.6f}s.')
+            self.logger.info(f'Solution:\n{self.puzzle_to_string(solution)}')
+            self.solution = solution
+            return solution
+        except queue.Full: # Prevent two processes that found solution at the same time from messing up the queue
+            self.logger.info(f'{mp.current_process().name}: found the solution but another process found it first')
+            return
+        
 
     def build_puzzle_output_string(self, timetaken: float, no_solution: float) -> str:
         '''
@@ -436,24 +444,22 @@ def main(args: argparse.Namespace) -> None:
                
         sud = Sudoku(puzzle, loglevel)
         # Use all processors to solve the puzzle, each one using one iterative method for the backtracking algorithm.
-        # Once the solution has been found, the other processes raise an AlreadySolved exception and return nothing.
+        # Once the solution has been found, the other processes raise an AlreadySolved exception.
+        s = time.perf_counter()
         iter_methods = ['sequential', 'reversed']
-        for i in range(mp.cpu_count()):
-            try:
-                method = iter_methods[i]
-            except IndexError:
-                method = 'random'
-            
+        while len(iter_methods) < mp.cpu_count():
+            iter_methods.append('random')
+        for i, method in enumerate(iter_methods):
             name = f'{i}: {method}'
             p = mp.Process(name=name, target=sud.solve, args=(method,))
             p.start()
-        sud.solved.wait()
-        sud.interrupt.set()
-        solution = sud.queue.get()        
-        #print(f'Loaded puzzle:\n{sud.puzzle_to_string(sud.puzzle)}')
-        #runtime = timefunc(sud.solve)
-        #print(f'Puzzle solved in {runtime:.6f}s.')
-        #print(f'Solution:\n{sud.puzzle_to_string(sud.solution)}')
+        sud.solution = sud.queue.get()
+        e = time.perf_counter()
+        print(f'The whole thing takes: {e-s}') #just a test
+        print(f'Loaded puzzle:\n{sud.puzzle_to_string(sud.puzzle)}')
+        runtime = sud.queue.get()
+        print(f'Puzzle solved in {runtime:.6f}s.')
+        print(f'Solution:\n{sud.puzzle_to_string(sud.solution)}')
     
     elif args.file:
         print(f'Solving puzzles from file {args.file.name}...')
@@ -463,17 +469,33 @@ def main(args: argparse.Namespace) -> None:
 
         output_file_path = time.strftime('solved_puzzles/puzzles%Y%m%d-%H%M.txt', time.localtime(time.time()))
 
+        s = time.perf_counter()
         with open(output_file_path, 'w') as outfile:
             total_runtime = 0
             outfile.write(f'Solved puzzles from file {args.file.name}:')
+            iter_methods = ['sequential', 'reversed']
+            while len(iter_methods) < mp.cpu_count():
+                iter_methods.append('random')
             for i, puzzle in enumerate(puzzles):
                 print(f'Solving puzzle {i+1}: {puzzle}', end='  ', flush=True)
                 sud = Sudoku(puzzle, loglevel = logging.WARNING)
-                runtime = timefunc(sud.solve)
+                processes = []
+                for i, method in enumerate(iter_methods):
+                    name = f'{i}: {method}'
+                    p = mp.Process(name=name, target=sud.solve, args=(method,))
+                    processes.append(p)
+                    p.start()
+                for proc in processes:
+                    proc.join()
+                sud.solution, runtime = sud.queue.get()
                 print(f'(Done in {runtime:.6f}s)')
                 outfile.write('\n\n' + sud.build_puzzle_output_string(runtime, False))
                 total_runtime += runtime
+
+            outfile.write(f'\n\nSolved {i+1} puzzles in {total_runtime:.6f}s.')
         print(f'Solved {i+1} puzzles in {total_runtime:.6f}s. Output file: {output_file_path}')
+        e = time.perf_counter()
+        print(f'Whole thing took {e-s:.6f}s')
 
     else:
         clues, number_of_puzzles = args.generate
@@ -490,6 +512,7 @@ def main(args: argparse.Namespace) -> None:
                 print(f'(Done in {runtime:.6f}s)')
                 outfile.write('\n\n' + sud.build_puzzle_output_string(runtime, True))
                 total_runtime += runtime
+            outfile.write(f'\n\nGenerated {i+1} puzzles in {total_runtime:.6f}s.')
         print(f'Generated {i+1} puzzles in {total_runtime:.6f}s. Output file: {output_file_path}')
 
 
