@@ -4,6 +4,7 @@ import typing
 import logging
 import random
 import time
+import argparse
 
 class test(Sudoku):
     def __init__(self, puzzle_string: str = None, loglevel: int = logging.WARNING) -> None:
@@ -105,9 +106,8 @@ class test(Sudoku):
     
     def get_next_space_with_least_candidates(self) -> tuple:
         possibles_by_length = {n: None for n in range(2,10)}
-        for row in range(9):
-            for col in range(9):
-                possibles = self.possibles[row][col]
+        for row, row_possibles in enumerate(self.possibles):
+            for col, possibles in enumerate(row_possibles):
                 if len(possibles) == 1:
                     continue
                 # If the number of candidates is two (the minimum), there's no point in looping further
@@ -154,21 +154,67 @@ class test(Sudoku):
             self.solution = deepcopy(backup_solution)
             self.possibles = deepcopy(backup_possibles)
 
+def solve_puzzle(puzzle_index: int, puzzle: str, loglevel: int) -> str:
+    '''
+    Wrapper for the Sudoku.solve method that return the final string representation of the puzzle and its solution,
+    including the time it took to solve.
+        Args:
+            puzzle_index: used only for the output to console. Useful when solving multiple puzzles at once.
+            puzzle: string representation of the puzzle to solve (in Sudoku notation)
+            loglevel: level of the logger
+    '''
+    start = time.perf_counter()
+    print(f'Solving puzzle {puzzle_index}: {puzzle}')
+    sud = Sudoku(puzzle, loglevel = loglevel)
+    sud.solve()
+    end = time.perf_counter()
+    runtime = end-start
+    output = '\n\n' + sud.build_puzzle_output_string(runtime, False)
+    print(f'Puzzle {puzzle_index} done ({runtime:.6f}s)')
+    return output
 
+def main(args: argparse.Namespace) -> None:
+    '''
+    Function that translates main arguments (usually provided by the command-line) into concrete actions for the program,
+    such as solving or generating a puzzle.
+        Args:
+            args.puzzle: a 81-long string of characters in Sudoku notation. If not provided, a puzzle will be generated.
+            args.file: if set, solve puzzles from given file and output solutions to a timestamped file in the solved_puzzles subdir.
+                Does nothing when generating (puzzles are output to file by default).
+            args.debug: If set, loglevel = DEBUG. Does nothing when generating puzzles or solving multiple puzzles (log level will always be WARNING).
+            args.generate: if generating a puzzle, this is a list containning clues and number of puzzles to generate.
+                Puzzles are saved in a timestamped file in generated_puzzles subdir
+    '''
+    if args.debug:
+        loglevel = logging.DEBUG
+    else:
+        loglevel = logging.WARNING
+    
+    if args.puzzle:
+        if args.puzzle == 'easy':
+            puzzle = '003020600900305001001806400008102900700000008006708200002609500800203009005010300'
+        elif args.puzzle == 'medium':
+            puzzle = '85...24..72......9..4.........1.7..23.5...9...4...........8..7..17..........36.4.'
+        elif args.puzzle == 'hard':
+            puzzle = '..53.....8......2..7..1.5..4....53...1..7...6..32...8..6.5....9..4....3......97..'
+        elif args.puzzle == 'hardest':
+            puzzle = '4.....8.5.3..........7......2.....6.....8.4......1.......6.3.7.5..2.....1.4......'
+        else:
+            puzzle = args.puzzle
 
-
-
-
+        result = solve_puzzle(1, puzzle, loglevel=loglevel)
+        print(result)
 
 
 if __name__ == '__main__':
-    puz = '4.....8.5.3..........7......2.....6.....8.4......1.......6.3.7.5..2.....1.4......'
-    sud = test(puz, logging.DEBUG)
-    print(sud.puzzle_to_string(sud.solution))
-    #sud.constraint_propagation()
-    #print(sud.puzzle_to_string(sud.solution))
-    s = time.perf_counter()
-    sud.solve()
-    e = time.perf_counter()
-    print(sud.puzzle_to_string(sud.solution))
-    print(f'{e-s:.6f}s')
+    parser = argparse.ArgumentParser()
+    mex = parser.add_mutually_exclusive_group(required=True)
+    mex.add_argument('-p', '--puzzle', action='store', help="Run the solver for a given puzzle. For solving a demo puzzle, pass the value 'easy'|'medium'|'hard'|'hardest' instead of a puzzle.")
+    mex.add_argument('-g', '--generate', action='store', type=int, nargs=2, metavar=('CLUES', 'HOWMANY'), help='Generate a puzzle with a given number of clues.')
+    mex.add_argument('-f', '--file', action='store', type=argparse.FileType('r'), nargs='?', const='puzzles.txt', help='Solve puzzles from given file. Output also goes to a file.')
+    parser.add_argument('-d', '--debug', action='store_true', help='Set logger level to debug. Has no effect when generating a puzzle or solving multiple puzzles.')
+    args = parser.parse_args()
+
+    main(args)
+
+
