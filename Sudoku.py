@@ -1,12 +1,11 @@
 import random
 from copy import deepcopy
 import logging
-from typing import Tuple
+from typing import Tuple, TextIO
 import time
 import argparse
 import multiprocessing as mp
 
-from utils.timer import timefunc
 from utils.logger import create_logger
 class NoValidNumbers(ValueError):
     '''
@@ -303,7 +302,7 @@ class Sudoku:
         output.append(puzzle_as_string)
         solution_notation = self.puzzle_to_notation(self.solution)
         if no_solution:
-            output.insert(-1, f'Generated in {timetaken:.6f}s')
+            output.insert(-1, f'Generated in {timetaken:.6f}s by {mp.current_process().name}')
         else:
             output.append(f'Solution: {solution_notation}')
             output.append(f'Solved in {timetaken:.6f}s by {mp.current_process().name}')
@@ -406,16 +405,83 @@ def solve_puzzle(puzzle_index: int, puzzle: str, loglevel: int) -> str:
             loglevel: level of the logger
     '''
     start = time.perf_counter()
-    print(f'Solving puzzle {puzzle_index+1}: {puzzle}')
+    print(f'Solving puzzle {puzzle_index}: {puzzle}')
     sud = Sudoku(puzzle, loglevel = loglevel)
     sud.solve()
     end = time.perf_counter()
     runtime = end-start
     output = '\n\n' + sud.build_puzzle_output_string(runtime, False)
-    print(f'Puzzle {puzzle_index+1} done ({runtime:.6f}s)')
+    print(f'Puzzle {puzzle_index} done ({runtime:.6f}s)')
     return output
 
+def solve_file(file: TextIO) -> None:
+    '''
+    Solve all puzzles in the given file using a multiprocessing pool. Results are saved to /solved_puzzles subfolder.
+    '''
+    print(f'Solving puzzles from file {file.name}...')
+    start = time.perf_counter()
+    with file as source:
+        puzzles = source.read().split('\n')
+    tasks = [(i+1, puzzle, logging.WARNING) for i, puzzle in enumerate(puzzles)]
+    workers = mp.cpu_count()
 
+    with mp.Pool(workers) as pool:
+        result = pool.starmap_async(solve_puzzle, tasks)
+    
+        output_file_path = time.strftime('solved_puzzles/puzzles%Y%m%d-%H%M.txt', time.localtime(time.time()))
+        with open(output_file_path, 'w') as outfile:
+            outfile.write(f'Solved puzzles from file {file.name}:')
+            for puz in result.get():
+                outfile.write(puz)
+            end = time.perf_counter()
+            total_runtime = end-start
+            outfile.write(f'\n\n{workers} processes solved {len(tasks)} puzzles in {total_runtime:.6f}s.')
+        print(f'{workers} processes solved {len(tasks)} puzzles in {total_runtime:.6f}s. Output file: {output_file_path}')
+
+def generate_puzzle(puzzle_index: str, clues: int) -> str:
+    '''
+    Wrapper for the Sudoku.generate method.
+    Return a string representation of the generated puzzle, including the time it took to generate.
+        Args:
+            puzzle_index: used only for the output to console. Useful when generating multiple puzzles.
+            clues: the number of clues the puzzle should have
+    '''
+    start = time.perf_counter()
+    print(f'Generating puzzle {puzzle_index}...')
+    sud = Sudoku(loglevel = logging.WARNING)
+    sud.generate(clues)
+    end = time.perf_counter()
+    runtime = end-start
+    output = '\n\n' + sud.build_puzzle_output_string(runtime, True)
+    print(f'Puzzle {puzzle_index} done ({runtime:.6f}s)')
+    return output
+
+def generate_many_puzzles(clues: int, number_of_puzzles: int) -> None:
+    '''
+    Wrapper for the Sudoku.generate method. Uses a multiprocessing pool to generate multiple puzzles concurrently.
+    Results are saved in the /generated_puzzles subdir.
+        Args:
+            clues: how many clues to give to each puzzle
+            number_of_puzzles: how many puzzles to generate
+    '''
+    print(f'Generating {number_of_puzzles} puzzles with {clues} clues...')
+    start = time.perf_counter()
+    output_file_path = time.strftime('generated_puzzles/puzzles%Y%m%d-%H%M.txt', time.localtime(time.time()))
+    tasks = [(i+1, clues) for i in range(number_of_puzzles)]
+    workers = mp.cpu_count()
+    with mp.Pool(workers) as pool:
+        result = pool.starmap_async(generate_puzzle, tasks)
+
+        with open(output_file_path, 'w') as outfile:
+            outfile.write(f'Generated puzzles with {clues} clues:')
+            for puz in result.get():
+                outfile.write(puz)
+            end = time.perf_counter()
+            total_runtime = end-start
+            outfile.write(f'\n\n{workers} processes generated {len(tasks)} puzzles in {total_runtime:.6f}s.')
+        print(f'{workers} processes generated {len(tasks)} puzzles in {total_runtime:.6f}s. Output file: {output_file_path}')
+
+    
 def main(args: argparse.Namespace) -> None:
     '''
     Function that translates main arguments (usually provided by the command-line) into concrete actions for the program,
@@ -445,47 +511,15 @@ def main(args: argparse.Namespace) -> None:
         else:
             puzzle = args.puzzle
 
-        result = solve_puzzle(0, puzzle, loglevel=loglevel)
+        result = solve_puzzle(1, puzzle, loglevel=loglevel)
         print(result)
     
     elif args.file:
-        print(f'Solving puzzles from file {args.file.name}...')
-        start = time.perf_counter()
-        with args.file as source:
-            puzzles = source.read().split('\n')
-        tasks = [(i, puzzle, logging.WARNING) for i, puzzle in enumerate(puzzles)]
-        workers = mp.cpu_count()
-
-        with mp.Pool(workers) as pool:
-            result = pool.starmap_async(solve_puzzle, tasks)
-        
-            output_file_path = time.strftime('solved_puzzles/puzzles%Y%m%d-%H%M.txt', time.localtime(time.time()))
-            with open(output_file_path, 'w') as outfile:
-                for puz in result.get():
-                    outfile.write(puz)
-                end = time.perf_counter()
-                total_runtime = end-start
-                outfile.write(f'\n\n{workers} processes solved {len(tasks)} puzzles in {total_runtime:.6f}s.')
-            print(f'{workers} processes solved {len(tasks)} puzzles in {total_runtime:.6f}s. Output file: {output_file_path}')
+        solve_file(args.file)
 
     else:
         clues, number_of_puzzles = args.generate
-        print(f'Generating {number_of_puzzles} puzzles with {clues} clues...')
-        
-        output_file_path = time.strftime('generated_puzzles/puzzles%Y%m%d-%H%M.txt', time.localtime(time.time()))
-        with open(output_file_path, 'w') as outfile:
-            total_runtime = 0
-            outfile.write(f'Puzzles generated with {clues} clues:')
-            for i in range(number_of_puzzles):
-                print(f'Generating puzzle {i+1}...', end='  ', flush=True)
-                sud = Sudoku(loglevel = logging.WARNING)
-                runtime = timefunc(sud.generate, clues)
-                print(f'(Done in {runtime:.6f}s)')
-                outfile.write('\n\n' + sud.build_puzzle_output_string(runtime, True))
-                total_runtime += runtime
-            outfile.write(f'\n\nGenerated {i+1} puzzles in {total_runtime:.6f}s.')
-        print(f'Generated {i+1} puzzles in {total_runtime:.6f}s. Output file: {output_file_path}')
-
+        generate_many_puzzles(clues, number_of_puzzles)
 
 
 if __name__ == '__main__':
