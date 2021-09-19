@@ -5,7 +5,6 @@ from typing import Tuple
 import time
 import argparse
 import multiprocessing as mp
-import queue
 
 from utils.timer import timefunc
 from utils.logger import create_logger
@@ -31,9 +30,6 @@ class Sudoku:
         
         # Set up logger
         self.logger = create_logger('Sudoku', 'debug_logs/lastrun.log', loglevel=loglevel)
-
-        # Set up multiprocessing events and queue
-        self.queue = mp.Queue(maxsize=1)
 
     def parse_puzzle(self, puzzle_string: str) -> list:
         '''
@@ -173,8 +169,6 @@ class Sudoku:
         To avoid the overhead of generating the list of possible numbers every time a new space is filled,
         self.is_possible() is called instead right before insertion to make sure it's a valid number.
         '''
-        if not self.queue.empty():
-            raise AlreadySolved('Another process already solved this puzzle.')
         has_changed = False
         all_possibles, by_rows, by_cols, by_regs = self.get_list_of_possible_numbers(puzzle)
         for row, possibles_row in enumerate(all_possibles):
@@ -281,29 +275,19 @@ class Sudoku:
         self.logger.info(f'Loaded puzzle:\n{self.puzzle_to_string(self.puzzle)}')
         self.logger.info('Trying to solving puzzle using constraint propagation...')
         start_time = time.perf_counter()
-        try:
-            prop_result = self.constraint_propagation(deepcopy(self.puzzle))
-            if self.is_puzzle_solved(prop_result):
-                solution = prop_result
-            else:
-                self.logger.info('This is a tough one. Let me try guessing some numbers...')
-                solution = self.experiment(prop_result, itertype)
-        except AlreadySolved:
-            self.logger.info(f'{mp.current_process().name}: puzzle solved by another process')
-            return
-        try:
-            self.logger.info(f'Puzzle solved by {mp.current_process().name}')
-            end_time = time.perf_counter()
-            total_time = end_time - start_time
-            self.queue.put_nowait((solution, total_time))
-            self.logger.info(f'Success! Puzzle solved in {total_time:.6f}s.')
-            self.logger.info(f'Solution:\n{self.puzzle_to_string(solution)}')
-            self.solution = solution
-            return solution
-        except queue.Full: # Prevent two processes that found solution at the same time from messing up the queue
-            self.logger.info(f'{mp.current_process().name}: found the solution but another process found it first')
-            return
-        
+        prop_result = self.constraint_propagation(deepcopy(self.puzzle))
+        if self.is_puzzle_solved(prop_result):
+            solution = prop_result
+        else:
+            self.logger.info('This is a tough one. Let me try guessing some numbers...')
+            solution = self.experiment(prop_result, itertype)
+        self.logger.info(f'Puzzle solved by {mp.current_process().name}')
+        end_time = time.perf_counter()
+        total_time = end_time - start_time
+        self.logger.info(f'Success! Puzzle solved in {total_time:.6f}s.')
+        self.logger.info(f'Solution:\n{self.puzzle_to_string(solution)}')
+        self.solution = solution
+        return solution       
 
     def build_puzzle_output_string(self, timetaken: float, no_solution: float) -> str:
         '''
@@ -322,7 +306,7 @@ class Sudoku:
             output.insert(-1, f'Generated in {timetaken:.6f}s')
         else:
             output.append(f'Solution: {solution_notation}')
-            output.append(f'Solved in {timetaken:.6f}s')
+            output.append(f'Solved in {timetaken:.6f}s by {mp.current_process().name}')
             solution_as_string = self.puzzle_to_string(self.solution)
             output.append(solution_as_string)
         return '\n'.join(output)
@@ -412,6 +396,25 @@ class Sudoku:
         self.logger.info(self.puzzle_to_notation(self.solution))
         return puzzle
 
+def solve_puzzle(puzzle_index: int, puzzle: str, loglevel: int) -> str:
+    '''
+    Wrapper for the Sudoku.solve method that return the final string representation of the puzzle and its solution,
+    including the time it took to solve.
+        Args:
+            puzzle_index: used only for the output to console. Useful when solving multiple puzzles at once.
+            puzzle: string representation of the puzzle to solve (in Sudoku notation)
+            loglevel: level of the logger
+    '''
+    start = time.perf_counter()
+    print(f'Solving puzzle {puzzle_index+1}: {puzzle}', end='  ', flush=True)
+    sud = Sudoku(puzzle, loglevel = loglevel)
+    sud.solve()
+    end = time.perf_counter()
+    runtime = end-start
+    output = '\n\n' + sud.build_puzzle_output_string(runtime, False)
+    print(f'(Done in {runtime:.6f}s)')
+    return output
+
 
 def main(args: argparse.Namespace) -> None:
     '''
@@ -441,61 +444,29 @@ def main(args: argparse.Namespace) -> None:
             puzzle = '4.....8.5.3..........7......2.....6.....8.4......1.......6.3.7.5..2.....1.4......'
         else:
             puzzle = args.puzzle
-               
-        sud = Sudoku(puzzle, loglevel)
-        # Use all processors to solve the puzzle, each one using one iterative method for the backtracking algorithm.
-        # Once the solution has been found, the other processes raise an AlreadySolved exception.
-        s = time.perf_counter()
-        iter_methods = ['sequential', 'reversed']
-        while len(iter_methods) < mp.cpu_count():
-            iter_methods.append('random')
-        for i, method in enumerate(iter_methods):
-            name = f'{i}: {method}'
-            p = mp.Process(name=name, target=sud.solve, args=(method,))
-            p.start()
-        sud.solution = sud.queue.get()
-        e = time.perf_counter()
-        print(f'The whole thing takes: {e-s}') #just a test
-        print(f'Loaded puzzle:\n{sud.puzzle_to_string(sud.puzzle)}')
-        runtime = sud.queue.get()
-        print(f'Puzzle solved in {runtime:.6f}s.')
-        print(f'Solution:\n{sud.puzzle_to_string(sud.solution)}')
+
+        result = solve_puzzle(0, puzzle, loglevel=loglevel)
+        print(result)
     
     elif args.file:
         print(f'Solving puzzles from file {args.file.name}...')
-
+        start = time.perf_counter()
         with args.file as source:
             puzzles = source.read().split('\n')
+        tasks = [(i, puzzle, logging.WARNING) for i, puzzle in enumerate(puzzles)]
+        workers = mp.cpu_count()
 
-        output_file_path = time.strftime('solved_puzzles/puzzles%Y%m%d-%H%M.txt', time.localtime(time.time()))
-
-        s = time.perf_counter()
-        with open(output_file_path, 'w') as outfile:
-            total_runtime = 0
-            outfile.write(f'Solved puzzles from file {args.file.name}:')
-            iter_methods = ['sequential', 'reversed']
-            while len(iter_methods) < mp.cpu_count():
-                iter_methods.append('random')
-            for i, puzzle in enumerate(puzzles):
-                print(f'Solving puzzle {i+1}: {puzzle}', end='  ', flush=True)
-                sud = Sudoku(puzzle, loglevel = logging.WARNING)
-                processes = []
-                for i, method in enumerate(iter_methods):
-                    name = f'{i}: {method}'
-                    p = mp.Process(name=name, target=sud.solve, args=(method,))
-                    processes.append(p)
-                    p.start()
-                for proc in processes:
-                    proc.join()
-                sud.solution, runtime = sud.queue.get()
-                print(f'(Done in {runtime:.6f}s)')
-                outfile.write('\n\n' + sud.build_puzzle_output_string(runtime, False))
-                total_runtime += runtime
-
-            outfile.write(f'\n\nSolved {i+1} puzzles in {total_runtime:.6f}s.')
-        print(f'Solved {i+1} puzzles in {total_runtime:.6f}s. Output file: {output_file_path}')
-        e = time.perf_counter()
-        print(f'Whole thing took {e-s:.6f}s')
+        with mp.Pool(workers) as pool:
+            result = pool.starmap_async(solve_puzzle, tasks)
+        
+            output_file_path = time.strftime('solved_puzzles/puzzles%Y%m%d-%H%M.txt', time.localtime(time.time()))
+            with open(output_file_path, 'w') as outfile:
+                for puz in result.get():
+                    outfile.write(puz)
+                end = time.perf_counter()
+                total_runtime = end-start
+                outfile.write(f'\n\n{workers} processes solved {len(tasks)} puzzles in {total_runtime:.6f}s.')
+            print(f'{workers} processes solved {len(tasks)} puzzles in {total_runtime:.6f}s. Output file: {output_file_path}')
 
     else:
         clues, number_of_puzzles = args.generate
