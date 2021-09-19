@@ -32,13 +32,13 @@ class test(Sudoku):
         test
         '''
         target_r, target_c = space
-        for row in range(9):
-            for col in range(9):
+        for row, row_possibles in enumerate(self.possibles):
+            for col, possibles in enumerate(row_possibles):
                 if row == target_r and col == target_c:
-                    self.possibles[row][col] = [number]
+                    possibles = [number]
                 elif row == target_r or col == target_c or (row//3 == target_r//3 and col//3 == target_c//3):
                     try:
-                        self.possibles[row][col].remove(number)
+                        possibles.remove(number)
                     except ValueError:
                         pass
         return self.possibles
@@ -49,13 +49,13 @@ class test(Sudoku):
         '''
         target_r, target_c = space
         in_row = in_col = in_reg = 0
-        for row in range(9):
-            for col in range(9):
-                if row == target_r and number in self.possibles[row][col]:
+        for row, row_possibles in enumerate(self.possibles):
+            for col, possibles in enumerate(row_possibles):
+                if row == target_r and number in possibles:
                     in_row += 1
-                if col == target_c and number in self.possibles[row][col]:
+                if col == target_c and number in possibles:
                     in_col += 1
-                if row//3 == target_r//3 and col//3 == target_c//3 and number in self.possibles[row][col]:
+                if row//3 == target_r//3 and col//3 == target_c//3 and number in possibles:
                     in_reg += 1
                 if in_row > 1 and in_col > 1 and in_reg > 1:
                     return False
