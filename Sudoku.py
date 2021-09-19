@@ -406,13 +406,13 @@ def solve_puzzle(puzzle_index: int, puzzle: str, loglevel: int) -> str:
             loglevel: level of the logger
     '''
     start = time.perf_counter()
-    print(f'Solving puzzle {puzzle_index+1}: {puzzle}', end='  ', flush=True)
+    print(f'Solving puzzle {puzzle_index+1}: {puzzle}')
     sud = Sudoku(puzzle, loglevel = loglevel)
     sud.solve()
     end = time.perf_counter()
     runtime = end-start
     output = '\n\n' + sud.build_puzzle_output_string(runtime, False)
-    print(f'(Done in {runtime:.6f}s)')
+    print(f'Puzzle {puzzle_index+1} done ({runtime:.6f}s)')
     return output
 
 
