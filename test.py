@@ -2,6 +2,8 @@ from copy import deepcopy
 from Sudoku import Sudoku, NoValidNumbers, AlreadySolved
 import typing
 import logging
+import random
+import time
 
 class test(Sudoku):
     def __init__(self, puzzle_string: str = None, loglevel: int = logging.WARNING) -> None:
@@ -50,9 +52,9 @@ class test(Sudoku):
             for col in range(9):
                 if row == target_r and number in self.possibles[row][col]:
                     in_row += 1
-                elif col == target_c and number in self.possibles[row][col]:
+                if col == target_c and number in self.possibles[row][col]:
                     in_col += 1
-                elif row//3 == target_r//3 and col//3 == target_c//3 and number in self.possibles[row][col]:
+                if row//3 == target_r//3 and col//3 == target_c//3 and number in self.possibles[row][col]:
                     in_reg += 1
                 if in_row > 1 and in_col > 1 and in_reg > 1:
                     return False
@@ -78,11 +80,12 @@ class test(Sudoku):
                     self.logger.debug(f'Coordinate ({row},{col}) only has one possible: {selected_number}')
                     need_update = True
 
-                for possible in self.possibles[row][col]:
-                    if self.is_only_possible_space_for_number(possible, (row, col)):
-                        selected_number = possible
-                        self.logger.debug(f'Coordinate ({row},{col}) is only possibility for number: {selected_number}')
-                        need_update = True
+                else:
+                    for possible in self.possibles[row][col]:
+                        if self.is_only_possible_space_for_number(possible, (row, col)):
+                            selected_number = possible
+                            self.logger.debug(f'Coordinate ({row},{col}) is only possibility for number: {selected_number}')
+                            need_update = True
 
                 if need_update:
                     self.solution[row][col] = selected_number
@@ -99,6 +102,59 @@ class test(Sudoku):
                 f'{self.puzzle_to_string(self.solution)}'
             )
             return self.constraint_propagation()
+    
+    def get_next_space_with_least_candidates(self) -> tuple:
+        possibles_by_length = {n: None for n in range(2,10)}
+        for row in range(9):
+            for col in range(9):
+                possibles = self.possibles[row][col]
+                if len(possibles) == 1:
+                    continue
+                # If the number of candidates is two (the minimum), there's no point in looping further
+                if len(possibles) == 2:
+                    return (row, col)
+                # Store just the first coordinate that has a given number of possibles
+                if not possibles_by_length[len(possibles)]:
+                    possibles_by_length[len(possibles)] = (row, col)
+        # Return first coord with lowest number of possibles 
+        for coord in possibles_by_length.values():
+            if coord:
+                return coord 
+        raise AlreadySolved(f'Puzzle is already solved!')
+
+
+    def solve(self, itertype: str = 'sequential') -> list:
+        '''
+        test
+        '''
+        try:
+            self.constraint_propagation()
+        except NoValidNumbers:
+            return False
+        try:
+            row, col = self.get_next_space_with_least_candidates()
+            possibles = self.possibles[row][col]
+        except AlreadySolved:
+            self.logger.debug(f'No more empty spaces. Puzzle solved!')
+            return self.solution
+        
+        if itertype == 'random':
+            random.shuffle(possibles)
+        elif itertype == 'reversed':
+            possibles.reverse()
+        
+        for number in possibles:
+            self.logger.debug(f'Trying {number} in ({row},{col})...')
+            backup_solution = deepcopy(self.solution)
+            backup_possibles = deepcopy(self.possibles)
+            self.solution[row][col] = number
+            self.update_possibles(number, (row, col))
+            if self.solve(itertype):
+                return True
+            self.solution = deepcopy(backup_solution)
+            self.possibles = deepcopy(backup_possibles)
+
+
 
 
 
@@ -108,14 +164,11 @@ class test(Sudoku):
 if __name__ == '__main__':
     puz = '4.....8.5.3..........7......2.....6.....8.4......1.......6.3.7.5..2.....1.4......'
     sud = test(puz, logging.DEBUG)
-    #for row in sud.possibles:
-    #    print(row)
-    #sud.update_possibles(9, (0,1))
-    #print('')
-    #for row in sud.possibles:
-    #    print(row)
-    #print('')
-    #print(sud.is_only_possible_space_for_number(4, (5,1)))
-    #print('')
-    sud.constraint_propagation()
-    partial = sud.puzzle_to_string(sud.solution)
+    print(sud.puzzle_to_string(sud.solution))
+    #sud.constraint_propagation()
+    #print(sud.puzzle_to_string(sud.solution))
+    s = time.perf_counter()
+    sud.solve()
+    e = time.perf_counter()
+    print(sud.puzzle_to_string(sud.solution))
+    print(f'{e-s:.6f}s')
