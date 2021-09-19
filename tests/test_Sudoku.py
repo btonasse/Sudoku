@@ -4,6 +4,7 @@ Usage:
 python -m unittest discover -s tests -v -b
 '''
 import unittest
+import random
 from Sudoku import Sudoku
 
 class TestSudokuSimple(unittest.TestCase):
@@ -152,4 +153,55 @@ class TestSudokuHard(unittest.TestCase):
         solution = self.sud.experiment(self.partial_solution)
         self.assertEqual(solution, self.solution)
 
+class TestRandomExperiment(unittest.TestCase):
+    '''
+    Tests using the 'random' iteration method for the backtracking algorithm.
+    '''
+    def setUp(self) -> None:
+        random.seed(627834523645)
+        #Todo
+
+    def not_impl(self):
+        raise NotImplementedError
+
+class TestGenPuzzle(unittest.TestCase):
+    '''
+    Tests for the puzzle generating functionality
+    '''
+    def setUp(self) -> None:
+        random.seed(627834523645)
+        self.sud = Sudoku()
+        self.generated_puzzle = [
+            [0, 0, 0, 0, 0, 1, 0, 0, 2],
+            [0, 0, 0, 0, 6, 0, 0, 0, 3], 
+            [1, 0, 0, 0, 9, 2, 8, 0, 0], 
+            [0, 0, 0, 5, 0, 0, 0, 7, 9], 
+            [7, 1, 4, 0, 0, 6, 0, 2, 5], 
+            [3, 0, 5, 2, 1, 0, 6, 8, 4], 
+            [0, 0, 6, 1, 2, 8, 0, 9, 0], 
+            [0, 8, 0, 0, 0, 0, 0, 0, 0], 
+            [2, 0, 0, 7, 3, 0, 0, 6, 8]
+        ]
+
+    def test_generate_valid_board(self) -> None:
+        expected = [
+            [6, 5, 8, 3, 7, 1, 9, 4, 2],
+            [4, 2, 9, 8, 6, 5, 7, 1, 3],
+            [1, 7, 3, 4, 9, 2, 8, 5, 6],
+            [8, 6, 2, 5, 4, 3, 1, 7, 9],
+            [7, 1, 4, 9, 8, 6, 3, 2, 5],
+            [3, 9, 5, 2, 1, 7, 6, 8, 4],
+            [5, 3, 6, 1, 2, 8, 4, 9, 7],
+            [9, 8, 7, 6, 5, 4, 2, 3, 1],
+            [2, 4, 1, 7, 3, 9, 5, 6, 8]
+        ]
+        board = self.sud.generate_valid_board()
+        self.assertEqual(board, expected)
+    
+    def test_has_unique_solution(self) -> None:
+        self.assertTrue(self.sud.has_unique_solution(self.generated_puzzle))
+
+    def test_propose_puzzle(self) -> None:
+        proposed = self.sud.propose_puzzle(35)
+        self.assertEqual(proposed, self.generated_puzzle)
 

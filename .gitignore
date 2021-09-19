@@ -50,3 +50,6 @@ Pipfile.lock
 
 # Project specific
 todo.txt
+solved_puzzles/
+generated_puzzles/
+debug_logs/

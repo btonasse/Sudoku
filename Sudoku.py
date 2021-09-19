@@ -6,6 +6,8 @@ import time
 import argparse
 import multiprocessing as mp
 
+from utils.timer import timefunc
+from utils.logger import create_logger
 class NoValidNumbers(ValueError):
     '''
     Error for when there are no valid numbers for a space
@@ -19,13 +21,15 @@ class Sudoku:
     Sudoku solver/generator. Uses a mixture of constraint propagation/backtracking to solve puzzles.
     # Todo usage
     '''
-    def __init__(self, puzzle_string, loglevel=logging.WARNING) -> None:
-        self.puzzle = self.parse_puzzle(puzzle_string)
+    def __init__(self, puzzle_string: str = None, loglevel: int = logging.WARNING) -> None:
+        if puzzle_string:
+            self.puzzle = self.parse_puzzle(puzzle_string)
+        else:
+            self.puzzle = None
         self.solution = None
         
         # Set up logger
-        logging.basicConfig(level=loglevel)
-        self.logger = logging.getLogger('Sudoku')
+        self.logger = create_logger('Sudoku', 'debug_logs/lastrun.log', loglevel=loglevel)
 
         # Set up multiprocessing events and queue
         self.queue = mp.Queue()
@@ -274,71 +278,231 @@ class Sudoku:
         To speed up this process, after each 'guess' the constraint propagation algorithm is applied again.
             Args:
                 itertype: the type of iteration when guessing possible numbers: 'sequential' (default), 'random' or 'reversed'.
+        Solution is stored in self.solution and also returned as a list
         '''
-        output = []
-        output.append(f'Loaded puzzle:\n{self.puzzle_to_string(self.puzzle)}')
+        self.logger.info(f'Loaded puzzle:\n{self.puzzle_to_string(self.puzzle)}')
+        self.logger.info('Trying to solving puzzle using constraint propagation...')
         start_time = time.perf_counter()
         prop_result = self.constraint_propagation(deepcopy(self.puzzle))
         if self.is_puzzle_solved(prop_result):
             solution = prop_result
         else:
-            output.append('This is a tough one. I need to guess some numbers...')
-            try:
-                solution = self.experiment(prop_result, itertype)
-            except AlreadySolved: # Another process already found the solution
-                return
+            self.logger.info('This is a tough one. Let me try guessing some numbers...')
+            solution = self.experiment(prop_result, itertype)
+
         end_time = time.perf_counter()
         total_time = end_time - start_time
-        output.append(f'Success! Puzzle solved in {total_time:.6f}s by process #{mp.current_process().name}.')
-        output.append(f'Solution:\n{self.puzzle_to_string(solution)}')
+        self.logger.info(f'Success! Puzzle solved in {total_time:.6f}s.')
+        self.logger.info(f'Solution:\n{self.puzzle_to_string(solution)}')
         self.solution = solution
-        print('\n'.join(output))
-        self.queue.put(solution)
         return solution
 
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('puzzle', action='store', help="Run the solver for a given puzzle. For solving a demo puzzle, pass the value 'easy'|'medium'|'hard'|'hardest' instead of a puzzle.")
-    parser.add_argument('-d', '--debug', action='store_true', help='Set logger level to debug.')
-    args = parser.parse_args()
-
-    if args.puzzle == 'easy':
-        puzzle = '003020600900305001001806400008102900700000008006708200002609500800203009005010300'
-    elif args.puzzle == 'medium':
-        puzzle = '85...24..72......9..4.........1.7..23.5...9...4...........8..7..17..........36.4.'
-    elif args.puzzle == 'hard':
-        puzzle = '..53.....8......2..7..1.5..4....53...1..7...6..32...8..6.5....9..4....3......97..'
-    elif args.puzzle == 'hardest':
-        puzzle = '4.....8.5.3..........7......2.....6.....8.4......1.......6.3.7.5..2.....1.4......'
-    else:
-        puzzle = args.puzzle
+    def build_puzzle_output_string(self, timetaken: float, no_solution: float) -> str:
+        '''
+        Take self.puzzle (and potentially self.solution) and return them as a string.
+            Args:
+                timetaken: time in seconds that the puzzle took to solve.
+                no_solution: if set, only the puzzle will be output and the time it took to generate 
+        '''
+        output = []
+        puzzle_notation = self.puzzle_to_notation(self.puzzle)
+        output.append(f'Puzzle: {puzzle_notation}')
+        puzzle_as_string = self.puzzle_to_string(self.puzzle)
+        output.append(puzzle_as_string)
+        solution_notation = self.puzzle_to_notation(self.solution)
+        if no_solution:
+            output.insert(-1, f'Generated in {timetaken:.6f}s')
+        else:
+            output.append(f'Solution: {solution_notation}')
+            output.append(f'Solved in {timetaken:.6f}s')
+            solution_as_string = self.puzzle_to_string(self.solution)
+            output.append(solution_as_string)
+        return '\n'.join(output)
     
+    def generate_valid_board(self) -> list:
+        '''
+        Generates a random valid Sudoku board. Populates self.solution with the result.
+        '''
+        board = [[0 for _ in range(9)] for _ in range(9)]
+        solution = self.experiment(board, itertype='random')
+        self.solution = solution
+        return solution
+
+    def remove_space(self, board) -> list: 
+        '''
+        Removes a random number from a board and then return the new board state.
+        '''
+        puzzle = deepcopy(board)
+        while True:
+            row = random.randint(0,8)
+            col = random.randint(0,8)
+            if not puzzle[row][col]:
+                continue
+            puzzle[row][col] = 0
+            return puzzle
+
+    def propose_puzzle(self, clues: int = 35) -> list:
+        '''
+        Looks for a valid unique puzzle with the specified number of clues.
+        This is a recursive function that follows the following workflow:
+        1) Generate a full random board via self.experiment
+        2) Remove random space
+        3) Try to solve the new board state many times. If more than one solution found, go back to step 1.
+        '''
+        if clues < 17:
+            raise ValueError('Cannot generate a unique puzzle with less than 17 clues.')
+        toremove = 81-clues
+        puzzle = self.generate_valid_board()
+        loops = 0
+        while toremove > 0:
+            backup = deepcopy(puzzle)
+            puzzle = self.remove_space(puzzle)
+            if self.has_unique_solution(puzzle):
+                toremove -= 1
+                continue
+            else:
+                puzzle = deepcopy(backup)
+            if loops == 100:
+                self.logger.info('No unique puzzle found after 100 attempts. Trying a new board...')
+                return self.propose_puzzle(clues)
+            loops += 1
+        self.puzzle = puzzle
+        return puzzle
+    
+    def has_unique_solution(self, puzzle: list, max_tries: int = 100) -> bool:
+        '''
+        Checks if a given puzzle has a unique solution.
+            Args:
+                puzzle -> the current puzzle state to check
+                max_tries -> max number of attempts before deciding that the puzzle is unique
+        '''
+        solutions = set()
+        tries = 0
+        while tries < max_tries:
+            partial_solution = self.constraint_propagation(deepcopy(puzzle))
+            new_solution = self.experiment(partial_solution, itertype='random')
+            as_tuple = tuple([tuple(row) for row in new_solution]) # List is not hashable
+            solutions.add(as_tuple)
+            if len(solutions) > 1:
+                return False
+            tries += 1
+        return True
+
+    def generate(self, clues: int = 35) -> list:
+        '''
+        Master method to generate a valid and unique puzzle.
+        '''
+        self.logger.info(f'Looking for a unique puzzle with {clues} clues...')
+        start = time.perf_counter()
+        puzzle = self.propose_puzzle(clues)
+        end = time.perf_counter()
+        self.logger.info(f'Generated puzzle in {end-start:.6f}s:')
+        self.logger.info(self.puzzle_to_string(self.puzzle))
+        self.logger.info(self.puzzle_to_notation(self.puzzle))
+        self.logger.info('Solution:')
+        self.logger.info(self.puzzle_to_string(self.solution))
+        self.logger.info(self.puzzle_to_notation(self.solution))
+        return puzzle
+
+
+def main(args: argparse.Namespace) -> None:
+    '''
+    Function that translates main arguments (usually provided by the command-line) into concrete actions for the program,
+    such as solving or generating a puzzle.
+        Args:
+            args.puzzle: a 81-long string of characters in Sudoku notation. If not provided, a puzzle will be generated.
+            args.file: if set, solve puzzles from given file and output solutions to a timestamped file in the solved_puzzles subdir.
+                Does nothing when generating (puzzles are output to file by default).
+            args.debug: If set, loglevel = DEBUG. Does nothing when generating puzzles or solving multiple puzzles (log level will always be WARNING).
+            args.generate: if generating a puzzle, this is a list containning clues and number of puzzles to generate.
+                Puzzles are saved in a timestamped file in generated_puzzles subdir
+    '''
     if args.debug:
         loglevel = logging.DEBUG
     else:
         loglevel = logging.WARNING
     
-    # Instantiate class
-    sud = Sudoku(puzzle, loglevel)
+    if args.puzzle:
+        if args.puzzle == 'easy':
+            puzzle = '003020600900305001001806400008102900700000008006708200002609500800203009005010300'
+        elif args.puzzle == 'medium':
+            puzzle = '85...24..72......9..4.........1.7..23.5...9...4...........8..7..17..........36.4.'
+        elif args.puzzle == 'hard':
+            puzzle = '..53.....8......2..7..1.5..4....53...1..7...6..32...8..6.5....9..4....3......97..'
+        elif args.puzzle == 'hardest':
+            puzzle = '4.....8.5.3..........7......2.....6.....8.4......1.......6.3.7.5..2.....1.4......'
+        else:
+            puzzle = args.puzzle
+               
+        sud = Sudoku(puzzle, loglevel)
+        # Use all processors to solve the puzzle, each one using one iterative method for the backtracking algorithm.
+        # Once the solution has been found, the other processes raise an AlreadySolved exception and return nothing.
+        iter_methods = ['sequential', 'reversed']
+        for i in range(mp.cpu_count()):
+            try:
+                method = iter_methods[i]
+            except IndexError:
+                method = 'random'
+            
+            name = f'{i}: {method}'
+            p = mp.Process(name=name, target=sud.solve, args=(method,))
+            p.start()
+        sud.solved.wait()
+        sud.interrupt.set()
+        solution = sud.queue.get()        
+        #print(f'Loaded puzzle:\n{sud.puzzle_to_string(sud.puzzle)}')
+        #runtime = timefunc(sud.solve)
+        #print(f'Puzzle solved in {runtime:.6f}s.')
+        #print(f'Solution:\n{sud.puzzle_to_string(sud.solution)}')
     
-    # Use all processors to solve the puzzle, each one using one iterative method for the backtracking algorithm.
-    # Once the solution has been found, the other processes raise an AlreadySolved exception and return nothing.
-    iter_methods = ['sequential', 'reversed']
-    for i in range(mp.cpu_count()):
-        try:
-            method = iter_methods[i]
-        except IndexError:
-            method = 'random'
-        
-        name = f'{i}: {method}'
-        p = mp.Process(name=name, target=sud.solve, args=(method,))
-        p.start()
-    sud.solved.wait()
-    sud.interrupt.set()
-    solution = sud.queue.get()
+    elif args.file:
+        print(f'Solving puzzles from file {args.file.name}...')
 
-    # logging currently does not work
-    # revise tests to include multiprocessing scenarios
+        with args.file as source:
+            puzzles = source.read().split('\n')
+
+        output_file_path = time.strftime('solved_puzzles/puzzles%Y%m%d-%H%M.txt', time.localtime(time.time()))
+
+        with open(output_file_path, 'w') as outfile:
+            total_runtime = 0
+            outfile.write(f'Solved puzzles from file {args.file.name}:')
+            for i, puzzle in enumerate(puzzles):
+                print(f'Solving puzzle {i+1}: {puzzle}', end='  ', flush=True)
+                sud = Sudoku(puzzle, loglevel = logging.WARNING)
+                runtime = timefunc(sud.solve)
+                print(f'(Done in {runtime:.6f}s)')
+                outfile.write('\n\n' + sud.build_puzzle_output_string(runtime, False))
+                total_runtime += runtime
+        print(f'Solved {i+1} puzzles in {total_runtime:.6f}s. Output file: {output_file_path}')
+
+    else:
+        clues, number_of_puzzles = args.generate
+        print(f'Generating {number_of_puzzles} puzzles with {clues} clues...')
+        
+        output_file_path = time.strftime('generated_puzzles/puzzles%Y%m%d-%H%M.txt', time.localtime(time.time()))
+        with open(output_file_path, 'w') as outfile:
+            total_runtime = 0
+            outfile.write(f'Puzzles generated with {clues} clues:')
+            for i in range(number_of_puzzles):
+                print(f'Generating puzzle {i+1}...', end='  ', flush=True)
+                sud = Sudoku(loglevel = logging.WARNING)
+                runtime = timefunc(sud.generate, clues)
+                print(f'(Done in {runtime:.6f}s)')
+                outfile.write('\n\n' + sud.build_puzzle_output_string(runtime, True))
+                total_runtime += runtime
+        print(f'Generated {i+1} puzzles in {total_runtime:.6f}s. Output file: {output_file_path}')
+
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    mex = parser.add_mutually_exclusive_group(required=True)
+    mex.add_argument('-p', '--puzzle', action='store', help="Run the solver for a given puzzle. For solving a demo puzzle, pass the value 'easy'|'medium'|'hard'|'hardest' instead of a puzzle.")
+    mex.add_argument('-g', '--generate', action='store', type=int, nargs=2, metavar=('CLUES', 'HOWMANY'), help='Generate a puzzle with a given number of clues.')
+    mex.add_argument('-f', '--file', action='store', type=argparse.FileType('r'), nargs='?', const='puzzles.txt', help='Solve puzzles from given file. Output also goes to a file.')
+    parser.add_argument('-d', '--debug', action='store_true', help='Set logger level to debug. Has no effect when generating a puzzle or solving multiple puzzles.')
+    args = parser.parse_args()
+
+    main(args)
 
 
