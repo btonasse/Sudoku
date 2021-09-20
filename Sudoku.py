@@ -20,10 +20,9 @@ class Sudoku:
     Sudoku solver/generator. Uses a mixture of constraint propagation/backtracking to solve puzzles.
     # Todo usage
     '''
-    def __init__(self, puzzle_string: str = None, loglevel: int = logging.WARNING) -> None:
-        # Set up logger
-        self.logger = create_logger('Sudoku', 'debug_logs/lastrun.log', loglevel=loglevel)
-        
+    # Set up logger
+    logger = create_logger('Sudoku', 'debug_logs/lastrun.log')
+    def __init__(self, puzzle_string: str = None) -> None:
         if puzzle_string:
             self.puzzle = self.parse_puzzle(puzzle_string)
             self.logger.info(f'Loaded puzzle:\n{self.puzzle_to_string(self.puzzle)}')
@@ -255,7 +254,7 @@ class Sudoku:
             if self.solve(itertype):
                 return self.solution
             self.solution = deepcopy(backup_solution)
-            self.possibles = deepcopy(backup_possibles)     
+            self.possibles = deepcopy(backup_possibles)
 
     def build_puzzle_output_string(self, timetaken: float, no_solution: float) -> str:
         '''
@@ -343,7 +342,6 @@ class Sudoku:
             tries += 1
         return True
 
-
     def generate(self, clues: int = 35) -> list:
         '''
         Master method to generate a valid and unique puzzle.
@@ -360,21 +358,23 @@ class Sudoku:
         self.logger.info(self.puzzle_to_notation(self.solution))
         return puzzle
 
-def solve_puzzle(puzzle_index: int, puzzle: str, loglevel: int) -> str:
+def solve_puzzle(puzzle_index: int, puzzle: str) -> str:
     '''
     Wrapper for the Sudoku.solve method that return the final string representation of the puzzle and its solution,
     including the time it took to solve.
         Args:
             puzzle_index: used only for the output to console. Useful when solving multiple puzzles at once.
             puzzle: string representation of the puzzle to solve (in Sudoku notation)
-            loglevel: level of the logger
     '''
     start = time.perf_counter()
     print(f'Solving puzzle {puzzle_index}: {puzzle}')
-    sud = Sudoku(puzzle, loglevel = loglevel)
-    sud.solve()
+    sud = Sudoku(puzzle)
+    result = sud.solve()
     end = time.perf_counter()
     runtime = end-start
+    if not result:
+        sud.logger.warning(f'Puzzle {puzzle_index} invalid: {puzzle}')
+        return f'\n\nPuzzle {puzzle_index} invalid: {puzzle}\nElapsed time: {runtime:.6f}s.'
     sud.logger.info(f'Elapsed time: {runtime:.6f}s')
     output = '\n\n' + sud.build_puzzle_output_string(runtime, False)
     print(f'Puzzle {puzzle_index} done ({runtime:.6f}s)')
@@ -388,7 +388,7 @@ def solve_file(file: TextIO) -> None:
     start = time.perf_counter()
     with file as source:
         puzzles = source.read().split('\n')
-    tasks = [(i+1, puzzle, logging.WARNING) for i, puzzle in enumerate(puzzles)]
+    tasks = [(i+1, puzzle) for i, puzzle in enumerate(puzzles)]
     workers = mp.cpu_count()
 
     with mp.Pool(workers) as pool:
@@ -398,7 +398,8 @@ def solve_file(file: TextIO) -> None:
         with open(output_file_path, 'w') as outfile:
             outfile.write(f'Solved puzzles from file {file.name}:')
             for puz in result.get():
-                outfile.write(puz)
+                if puz:
+                    outfile.write(puz)
             end = time.perf_counter()
             total_runtime = end-start
             outfile.write(f'\n\n{workers} processes solved {len(tasks)} puzzles in {total_runtime:.6f}s.')
@@ -414,7 +415,7 @@ def generate_puzzle(puzzle_index: str, clues: int) -> str:
     '''
     start = time.perf_counter()
     print(f'Generating puzzle {puzzle_index}...')
-    sud = Sudoku(loglevel = logging.WARNING)
+    sud = Sudoku()
     sud.generate(clues)
     end = time.perf_counter()
     runtime = end-start
@@ -460,12 +461,11 @@ def main(args: argparse.Namespace) -> None:
             args.generate: if generating a puzzle, this is a list containning clues and number of puzzles to generate.
                 Puzzles are saved in a timestamped file in generated_puzzles subdir
     '''
-    if args.debug:
-        loglevel = logging.DEBUG
-    else:
-        loglevel = logging.WARNING
-    
     if args.puzzle:
+        if args.debug:
+            Sudoku.logger.setLevel(logging.DEBUG)
+            Sudoku.logger.handlers[0].setLevel(logging.DEBUG)
+        
         if args.puzzle == 'easy':
             puzzle = '003020600900305001001806400008102900700000008006708200002609500800203009005010300'
         elif args.puzzle == 'medium':
@@ -477,8 +477,9 @@ def main(args: argparse.Namespace) -> None:
         else:
             puzzle = args.puzzle
 
-        result = solve_puzzle(1, puzzle, loglevel=loglevel)
-        print(result)
+        result = solve_puzzle(1, puzzle)
+        if result:
+            print(result)
     
     elif args.file:
         solve_file(args.file)
