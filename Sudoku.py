@@ -1,7 +1,7 @@
 import random
 from copy import deepcopy
 import logging
-from typing import Tuple, TextIO
+from typing import TextIO
 import time
 import argparse
 import multiprocessing as mp
@@ -321,18 +321,20 @@ class Sudoku:
         self.puzzle = puzzle
         return puzzle
     
-    def has_unique_solution(self, puzzle: list, max_tries: int = 100) -> bool:
+    def has_unique_solution(self, puzzle: list, max_tries: int = 50) -> bool:
         '''
         Checks if a given puzzle has a unique solution.
             Args:
                 puzzle -> the current puzzle state to check
                 max_tries -> max number of attempts before deciding that the puzzle is unique
         '''
-        solutions = set()
+        solutions = set()      
         tries = 0
         while tries < max_tries:
             # Reset instance attributes so puzzle can be solved from scratch
-            self.__init__(self.puzzle_to_notation(puzzle))
+            self.puzzle = puzzle
+            self.solution = deepcopy(puzzle)
+            self.possibles = self.get_list_of_possible_numbers()
             new_solution = self.solve(itertype='random')
             as_tuple = tuple([tuple(row) for row in new_solution]) # List is not hashable
             solutions.add(as_tuple)
@@ -340,6 +342,7 @@ class Sudoku:
                 return False
             tries += 1
         return True
+
 
     def generate(self, clues: int = 35) -> list:
         '''

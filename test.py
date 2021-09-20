@@ -235,7 +235,7 @@ class test(Sudoku):
             puzzle[row][col] = 0
             return puzzle
 
-    def has_unique_solution(self, puzzle: list, max_tries: int = 100) -> bool:
+    def has_unique_solution(self, puzzle: list, max_tries: int = 50) -> bool:
         '''
         Checks if a given puzzle has a unique solution.
             Args:
