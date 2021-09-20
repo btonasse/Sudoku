@@ -30,6 +30,7 @@ class Sudoku:
             self.puzzle = [[0 for _ in range(9)] for _ in range(9)]
         self.solution = deepcopy(self.puzzle)
         self.possibles = self.get_list_of_possible_numbers()
+        self.solution_count = 0
 
     def parse_puzzle(self, puzzle_string: str) -> list:
         '''
@@ -256,6 +257,37 @@ class Sudoku:
             self.solution = deepcopy(backup_solution)
             self.possibles = deepcopy(backup_possibles)
 
+    def get_solution_count(self) -> int:
+        '''
+        Modified version of self.solve. Instead of returning when a solution is found,
+        keep looking for solutions until more than one solution is found or no more solutions can be found.
+
+        Example with multiple solutions: '....19......74.51.75....6...1..3.....6.12.9.5.92..4.31475..13.6.3...51.718....45.'
+        '''
+        try:
+            self.constraint_propagation()
+        except NoValidNumbers:
+            return False
+        try:
+            row, col = self.get_next_space_with_least_candidates()
+            possibles = self.possibles[row][col]
+        except AlreadySolved:
+            self.solution_count += 1
+            self.logger.debug(f'No more empty spaces. Puzzle solved. Solutions so far: {self.get_solution_count}')
+            return self.solution_count
+
+        for number in possibles:
+            backup_solution = deepcopy(self.solution)
+            backup_possibles = deepcopy(self.possibles)
+            self.solution[row][col] = number
+            self.update_possibles(number, (row, col))
+            # Recurse but do not return (keep solving even if solution is found)
+            self.get_solution_count()
+            self.solution = deepcopy(backup_solution)
+            self.possibles = deepcopy(backup_possibles)
+        return self.solution_count
+
+
     def build_puzzle_output_string(self, timetaken: float, no_solution: float) -> str:
         '''
         Take self.puzzle (and potentially self.solution) and return them as a string.
@@ -278,11 +310,10 @@ class Sudoku:
             output.append(solution_as_string)
         return '\n'.join(output)
     
-    def remove_space(self, board) -> list: 
+    def remove_space(self, puzzle: list) -> list: 
         '''
         Removes a random number from a board and then return the new board state.
         '''
-        puzzle = deepcopy(board)
         while True:
             row = random.randint(0,8)
             col = random.randint(0,8)
@@ -297,12 +328,13 @@ class Sudoku:
         This is a recursive function that follows the following workflow:
         1) Generate a full random board via self.experiment
         2) Remove random space
-        3) Try to solve the new board state many times. If more than one solution found, go back to step 1.
+        3) Get number of solutions. If more than one solution found, go back to step 2 and try again until a threshold is met.
+           If the threshold is reached, go back to step 1.
         '''
         if clues < 17:
             raise ValueError('Cannot generate a unique puzzle with less than 17 clues.')
         toremove = 81-clues
-        puzzle = self.solve(itertype='random') #self.solution is complete
+        puzzle = self.solve(itertype='random')
 
         loops = 0
         while toremove > 0:
@@ -320,27 +352,15 @@ class Sudoku:
         self.puzzle = puzzle
         return puzzle
     
-    def has_unique_solution(self, puzzle: list, max_tries: int = 50) -> bool:
+    def has_unique_solution(self, puzzle: list) -> bool:
         '''
         Checks if a given puzzle has a unique solution.
-            Args:
-                puzzle -> the current puzzle state to check
-                max_tries -> max number of attempts before deciding that the puzzle is unique
+        Create a new Sudoku instance so the solution of the proposed puzzle doesn't interfere with the current instance's attributes.
         '''
-        solutions = set()      
-        tries = 0
-        while tries < max_tries:
-            # Reset instance attributes so puzzle can be solved from scratch
-            self.puzzle = puzzle
-            self.solution = deepcopy(puzzle)
-            self.possibles = self.get_list_of_possible_numbers()
-            new_solution = self.solve(itertype='random')
-            as_tuple = tuple([tuple(row) for row in new_solution]) # List is not hashable
-            solutions.add(as_tuple)
-            if len(solutions) > 1:
-                return False
-            tries += 1
-        return True
+        puzzle_str = self.puzzle_to_notation(puzzle)
+        sud = Sudoku(puzzle_str)
+        solutions = sud.get_solution_count()
+        return solutions == 1
 
     def generate(self, clues: int = 35) -> list:
         '''
