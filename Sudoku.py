@@ -257,12 +257,13 @@ class Sudoku:
             self.solution = deepcopy(backup_solution)
             self.possibles = deepcopy(backup_possibles)
 
-    def get_solution_count(self) -> int:
+    def get_solution_count(self, stop_at_two: bool = False) -> int:
         '''
         Modified version of self.solve. Instead of returning when a solution is found,
         keep looking for solutions until more than one solution is found or no more solutions can be found.
-
-        Example with multiple solutions: '....19......74.51.75....6...1..3.....6.12.9.5.92..4.31475..13.6.3...51.718....45.'
+        Args:
+            stop_at_two: if set, stop solving once the second solution is found.
+                Useful when you only need to know if a puzzle has just one solution.
         '''
         try:
             self.constraint_propagation()
@@ -281,11 +282,12 @@ class Sudoku:
             backup_possibles = deepcopy(self.possibles)
             self.solution[row][col] = number
             self.update_possibles(number, (row, col))
-            # Recurse but do not return (keep solving even if solution is found)
-            self.get_solution_count()
+            # Recurse but only return if a solution has already been found previously and we don't want to keep counting
+            self.get_solution_count(stop_at_two)
+            if self.solution_count > 1 and stop_at_two:
+                return self.solution_count
             self.solution = deepcopy(backup_solution)
             self.possibles = deepcopy(backup_possibles)
-        return self.solution_count
 
 
     def build_puzzle_output_string(self, timetaken: float, no_solution: float) -> str:
@@ -359,7 +361,7 @@ class Sudoku:
         '''
         puzzle_str = self.puzzle_to_notation(puzzle)
         sud = Sudoku(puzzle_str)
-        solutions = sud.get_solution_count()
+        solutions = sud.get_solution_count(stop_at_two=True)
         return solutions == 1
 
     def generate(self, clues: int = 35) -> list:
