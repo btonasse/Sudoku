@@ -47,7 +47,7 @@ class TestSudokuSimple(unittest.TestCase):
             [[4, 6], [4, 6, 7, 9], [5], [4], [1], [4, 7], [3], [2, 4, 6, 7, 8], [2, 4, 6, 7]]
         ]
     
-    def test_a_puzzle_parsing(self) -> None:
+    def test_puzzle_parsing(self) -> None:
         puzzle_string = '003020600900305001001806400008102900700000008006708200002609500800203009005010300'
         sudoku = Sudoku(puzzle_string)
         self.assertEqual(sudoku.puzzle, self.puzzle)
@@ -66,39 +66,28 @@ class TestSudokuSimple(unittest.TestCase):
         expected_results_at_00 = [False,False,False,True,True,False,False,False,False]
         for number in range(1,10):
             with self.subTest(i=number):
-                self.assertEqual(self.sud.is_possible(self.puzzle, 0, 0, number), expected_results_at_00[number-1])
+                self.assertEqual(self.sud.is_possible(0, 0, number), expected_results_at_00[number-1])
 
     def test_is_possible_on_non_empty_space(self) -> None:
-        possibilities = [self.sud.is_possible(self.puzzle, 1, 0, number) for number in range(1,10)]
+        possibilities = [self.sud.is_possible(1, 0, number) for number in range(1,10)]
         self.assertTrue(not any(possibilities))
     
-    def test_possible_numbers_for_space(self) -> None:
-        coords = [(4,5), (1,0), (0,0)]
-        expected = [[4], [9], [4,5]]
-        for i in range(3):
-            with self.subTest(i=i):
-                self.assertEqual(self.sud.get_possible_numbers_for_space(self.puzzle, coords[i][0], coords[i][1]), expected[i])
+    def test_list_of_possibles(self) -> None:
+        possibles = self.sud.get_list_of_possible_numbers()
+        self.assertEqual(possibles, self.possibles)
 
     def test_is_only_possible_space_for_number(self) -> None:
         coords = [(0,5), (1,2), (1,1)]
         numbers = [1, 4, 6]
         expected = [True, False, True]
-
-        by_rows = [[4, 5, 4, 5, 7, 8, 3, 4, 9, 2, 1, 4, 7, 6, 5, 7, 8, 9, 5, 7], [9, 2, 4, 6, 7, 8, 4, 7, 3, 4, 7, 5, 7, 8, 2, 7, 8, 1], [2, 5, 2, 5, 7, 1, 8, 7, 9, 6, 4, 2, 3, 5, 7, 9, 2, 3, 5, 7], [3, 4, 5, 3, 4, 5, 8, 1, 3, 4, 5, 6, 2, 9, 3, 4, 5, 6, 7, 3, 4, 5, 6, 7], [7, 1, 2, 3, 4, 5, 9, 4, 9, 4, 5, 9, 3, 4, 5, 6, 9, 4, 1, 1, 3, 4, 5, 6, 8], [1, 3, 4, 5, 1, 3, 4, 5, 9, 6, 7, 3, 4, 5, 9, 8, 2, 1, 3, 4, 5, 3, 4, 5], [1, 3, 4, 1, 3, 4, 7, 2, 6, 4, 7, 8, 9, 5, 1, 4, 7, 8, 4, 7], [8, 1, 4, 6, 7, 4, 7, 2, 4, 5, 7, 3, 1, 7, 1, 4, 6, 7, 9], [4, 6, 4, 6, 7, 9, 5, 4, 1, 4, 7, 3, 2, 4, 6, 7, 8, 2, 4, 6, 7]]
-        by_cols = [[4, 5, 9, 2, 5, 3, 4, 5, 7, 1, 3, 4, 5, 1, 3, 4, 8, 4, 6], [4, 5, 7, 8, 2, 4, 6, 7, 8, 2, 5, 7, 3, 4, 5, 1, 2, 3, 4, 5, 9, 1, 3, 4, 5, 9, 1, 3, 4, 7, 1, 4, 6, 7, 4, 6, 7, 9], [3, 4, 7, 1, 8, 4, 9, 6, 2, 4, 7, 5], [4, 9, 3, 8, 1, 4, 5, 9, 7, 6, 2, 4], [2, 4, 7, 7, 9, 3, 4, 5, 6, 3, 4, 5, 6, 9, 3, 4, 5, 9, 4, 7, 8, 4, 5, 7, 1], [1, 4, 7, 5, 6, 2, 4, 8, 9, 3, 4, 7], [6, 7, 8, 4, 9, 1, 2, 5, 1, 7, 3], [5, 7, 8, 9, 2, 7, 8, 2, 3, 5, 7, 9, 3, 4, 5, 6, 7, 1, 3, 4, 5, 6, 1, 3, 4, 5, 1, 4, 7, 8, 1, 4, 6, 7, 2, 4, 6, 7, 8], [5, 7, 1, 2, 3, 5, 7, 3, 4, 5, 6, 7, 8, 3, 4, 5, 4, 7, 9, 2, 4, 6, 7]]
-        by_regs = [[4, 5, 4, 5, 7, 8, 3, 9, 2, 4, 6, 7, 8, 4, 7, 2, 5, 2, 5, 7, 1], [4, 9, 2, 1, 4, 7, 3, 4, 7, 5, 8, 7, 9, 6], [6, 5, 7, 8, 9, 5, 7, 7, 8, 2, 7, 8, 1, 4, 2, 3, 5, 7, 9, 2, 3, 5, 7], [3, 4, 5, 3, 4, 5, 8, 7, 1, 2, 3, 4, 5, 9, 4, 9, 1, 3, 4, 5, 1, 3, 4, 5, 9, 6], [1, 3, 4, 5, 6, 2, 4, 5, 9, 3, 4, 5, 6, 9, 4, 7, 3, 4, 5, 9, 8], [9, 3, 4, 5, 6, 7, 3, 4, 5, 6, 7, 1, 1, 3, 4, 5, 6, 8, 2, 1, 3, 4, 5, 3, 4, 5], [1, 3, 4, 1, 3, 4, 7, 2, 8, 1, 4, 6, 7, 4, 7, 4, 6, 4, 6, 7, 9, 5], [6, 4, 7, 8, 9, 2, 4, 5, 7, 3, 4, 1, 4, 7], [5, 1, 4, 7, 8, 4, 7, 1, 7, 1, 4, 6, 7, 9, 3, 2, 4, 6, 7, 8, 2, 4, 6, 7]]
         for i in range(len(coords)):
             with self.subTest(i=i):
-                self.assertEqual(self.sud.is_only_possible_space_for_number(by_rows, by_cols, by_regs, coords[i][0], coords[i][1], numbers[i]), expected[i])
+                self.assertEqual(self.sud.is_only_possible_space_for_number(numbers[i], coords[i]), expected[i])
     
     def test_full_solution_with_constraint_propagation(self) -> None:
-        self.assertEqual(self.sud.constraint_propagation(self.puzzle), self.solution)
+        self.assertEqual(self.sud.constraint_propagation(), self.solution)
 
-    def test_is_solved(self) -> None:
-        self.assertFalse(self.sud.is_puzzle_solved(self.puzzle))
-        self.assertTrue(self.sud.is_puzzle_solved(self.solution))
-
-class TestSudokuHard(unittest.TestCase):
+class TestSudokuMedium(unittest.TestCase):
     '''
     Test case for harder puzzles that require backtracking to solve
     '''
@@ -139,18 +128,19 @@ class TestSudokuHard(unittest.TestCase):
         ]
     
     def test_partial_solution_after_constraint_propagation(self) -> None:
-        partial_solution = self.sud.constraint_propagation(self.puzzle)
+        partial_solution = self.sud.constraint_propagation()
         self.assertEqual(partial_solution, self.partial_solution)
 
     def test_get_next_empty_space(self) -> None:
         expected = (0,3)
         expected_possibles = [3,6]
-        space, possibles = self.sud.get_next_space_with_least_candidates(self.partial_solution)
+        self.sud.constraint_propagation()
+        space = self.sud.get_next_space_with_least_candidates()
         self.assertEqual(space, expected)
-        self.assertEqual(possibles, expected_possibles)
+        self.assertEqual(self.sud.possibles[0][3], expected_possibles)
 
-    def test_experiment(self) -> None:
-        solution = self.sud.experiment(self.partial_solution)
+    def test_full_solve(self) -> None:
+        solution = self.sud.solve()
         self.assertEqual(solution, self.solution)
 
 class TestRandomExperiment(unittest.TestCase):
@@ -195,8 +185,8 @@ class TestGenPuzzle(unittest.TestCase):
             [9, 8, 7, 6, 5, 4, 2, 3, 1],
             [2, 4, 1, 7, 3, 9, 5, 6, 8]
         ]
-        board = self.sud.generate_valid_board()
-        self.assertEqual(board, expected)
+        self.sud.solve(itertype='random')
+        self.assertEqual(self.sud.solution, expected)
     
     def test_has_unique_solution(self) -> None:
         self.assertTrue(self.sud.has_unique_solution(self.generated_puzzle))

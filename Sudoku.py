@@ -21,14 +21,16 @@ class Sudoku:
     # Todo usage
     '''
     def __init__(self, puzzle_string: str = None, loglevel: int = logging.WARNING) -> None:
-        if puzzle_string:
-            self.puzzle = self.parse_puzzle(puzzle_string)
-        else:
-            self.puzzle = None
-        self.solution = None
-        
         # Set up logger
         self.logger = create_logger('Sudoku', 'debug_logs/lastrun.log', loglevel=loglevel)
+        
+        if puzzle_string:
+            self.puzzle = self.parse_puzzle(puzzle_string)
+            self.logger.info(f'Loaded puzzle:\n{self.puzzle_to_string(self.puzzle)}')
+        else:
+            self.puzzle = [[0 for _ in range(9)] for _ in range(9)]
+        self.solution = deepcopy(self.puzzle)
+        self.possibles = self.get_list_of_possible_numbers()
 
     def parse_puzzle(self, puzzle_string: str) -> list:
         '''
@@ -78,190 +80,145 @@ class Sudoku:
         return output_string
 
                 
-    def is_possible(self, puzzle: list, row: int, col: int, number: int) -> bool:
+    def is_possible(self, row: int, col: int, number: int) -> bool:
         '''
         Check if a number can be entered in a given space.
             Args:
-                puzzle -> the whole grid
                 row/col -> the space coordinates
                 number -> the number being tested
         '''
         # Check if space already has a number
-        if puzzle[row][col]:
+        if self.solution[row][col]:
             return False
         for i in range(9):
-            if puzzle[row][i] == number:
+            if self.solution[row][i] == number:
                 return False
-            if puzzle[i][col] == number:
+            if self.solution[i][col] == number:
                 return False
             # Check in region
             root_row = (row//3)*3
             root_col = (col//3)*3
-            if number in puzzle[root_row+i//3][root_col:root_col+3]:
+            if number in self.solution[root_row+i//3][root_col:root_col+3]:
                 return False
         return True
 
-
-    def get_possible_numbers_for_space(self, puzzle: list, row: int, col: int) -> list:
-        '''
-        Get a list of possible numbers for a given space.
-        Iterate through all 9 numbers and append them to the return list
-        if not already present in the same row/column/region
-            Args:
-                puzzle -> the whole grid
-                row/col -> the space coordinates
-        '''
-        # If there's already a number, return a list with that as the single element
-        if puzzle[row][col]:
-            return [puzzle[row][col]]        
-        possible_numbers = []
-        for number in range(1,10):
-            if self.is_possible(puzzle, row, col, number):
-                possible_numbers.append(number)
-        return possible_numbers
-
-    def get_list_of_possible_numbers(self, puzzle: list) -> Tuple[list]:
+    def get_list_of_possible_numbers(self) -> list:
         '''
         Generates a nested list of possible numbers for each square.
-        Then takes the full list of possible numbers and transforms it into three lists
-        containing all possible numbers for each row, col and region, respectively.
         '''
         possibles = [[[] for _ in range(9)] for _ in range(9)]
-        for rowno, row in enumerate(puzzle):
+        for rowno, row in enumerate(self.puzzle):
             for colno, value in enumerate(row):
                 if not value:
                     for number in range(1,10):
-                        if self.is_possible(puzzle, rowno, colno, number):
+                        if self.is_possible(rowno, colno, number):
                             possibles[rowno][colno].append(number)
                 else:
                     possibles[rowno][colno] = [value]
-        
-        by_rows = [[] for _ in range(9)] 
-        by_cols = [[] for _ in range(9)]
-        by_regs = [[] for _ in range(9)]
-        for row, row_possibles in enumerate(possibles):
-            for col, space in enumerate(row_possibles):
-                for number in space:
-                    by_rows[row].append(number)
-                    by_cols[col].append(number)
-                    by_regs[col//3+3*(row//3)].append(number)
-        return possibles, by_rows, by_cols, by_regs
+        return possibles
 
-    def is_only_possible_space_for_number(self, in_rows: list, in_cols: list, in_regs: list, row: int, col: int, number: int) -> bool:
+    def update_possibles(self, number: int, space: tuple) -> list:
+        '''
+        Update self.possibles after a number is added to a space.
+        '''
+        target_r, target_c = space
+        for row in range(9):
+            for col in range(9):
+                if row == target_r and col == target_c:
+                    self.possibles[row][col] = [number]
+                elif row == target_r or col == target_c or (row//3 == target_r//3 and col//3 == target_c//3):
+                    try:
+                        self.possibles[row][col].remove(number)
+                    except ValueError:
+                        pass
+        return self.possibles
+
+    def is_only_possible_space_for_number(self, number: int, space: tuple) -> bool:
         '''
         Constraing propagation strategy 2:
         Check if a number cannot fit anywhere else in the row, col or region of a given coordinate.
         '''
-        if in_rows[row].count(number) == 1:
-            return True
-        if in_cols[col].count(number) == 1:
-            return True
-        if in_regs[col//3+3*(row//3)].count(number) == 1:
-            return True
-        return False
+        target_r, target_c = space
+        in_row = in_col = in_reg = 0
+        for row, row_possibles in enumerate(self.possibles):
+            for col, possibles in enumerate(row_possibles):
+                if row == target_r and number in possibles:
+                    in_row += 1
+                if col == target_c and number in possibles:
+                    in_col += 1
+                if row//3 == target_r//3 and col//3 == target_c//3 and number in possibles:
+                    in_reg += 1
+                if in_row > 1 and in_col > 1 and in_reg > 1:
+                    return False
+        return True
 
-    def constraint_propagation(self, puzzle: list) -> list:
+    def constraint_propagation(self) -> list:
         '''
         Recursive method to populate spaces using the following constraint propagation strategies:
             1) If a given space only has one possible number, populate that number
             2) If a given row/column/region only has one possible space for a number, populate it there.
-        To avoid the overhead of generating the list of possible numbers every time a new space is filled,
-        self.is_possible() is called instead right before insertion to make sure it's a valid number.
         '''
         has_changed = False
-        all_possibles, by_rows, by_cols, by_regs = self.get_list_of_possible_numbers(puzzle)
-        for row, possibles_row in enumerate(all_possibles):
-            for col, possibles_in_space in enumerate(possibles_row):
-                if puzzle[row][col]:
+        for row in range(9):
+            for col in range(9):
+                need_update = False
+                if self.solution[row][col]:
                     continue
-                if not possibles_in_space:
+
+                if not self.possibles[row][col]:
                     self.logger.debug(f'No valid numbers in row {row}, col {col}.')
                     raise NoValidNumbers(f'No valid numbers in row {row}, col {col}.')
-                
+
                 # If a given space only has one possible number, populate that number
-                if len(possibles_in_space) == 1 and self.is_possible(puzzle, row, col, possibles_in_space[0]):
-                    self.logger.debug(f'Coordinate ({row},{col}) only has one possible: {possibles_in_space[0]}')
-                    puzzle[row][col] = possibles_in_space[0]
-                    has_changed = True
+                if len(self.possibles[row][col]) == 1:
+                    selected_number = self.possibles[row][col][0]
+                    self.logger.debug(f'Coordinate ({row},{col}) only has one possible: {selected_number}')
+                    need_update = True
                 # If a number cannot fit anywhere else in same row/column/region only has one possible space for a number, populate it here
                 else:
-                    for number in possibles_in_space:
-                        if self.is_only_possible_space_for_number(by_rows, by_cols, by_regs, row, col, number) and self.is_possible(puzzle, row, col, number):
-                            self.logger.debug(f'Coordinate ({row},{col}) is only possibility for number: {number}')
-                            puzzle[row][col] = number
-                            has_changed = True
-                            break
+                    for possible in self.possibles[row][col]:
+                        if self.is_only_possible_space_for_number(possible, (row, col)):
+                            selected_number = possible
+                            self.logger.debug(f'Coordinate ({row},{col}) is only possibility for number: {selected_number}')
+                            need_update = True
+                # Update self.possibles if a space has been populated
+                if need_update:
+                    self.solution[row][col] = selected_number
+                    self.update_possibles(selected_number, (row, col))
+                    has_changed = True
         # Check if new_puzzle is the same as original one (no more propagation is possible)
         # If it is not, try to keep propagating recursively
         if not has_changed:
             self.logger.debug('No more propagation possible.')
-            return puzzle
+            return self.solution
         else:
             self.logger.debug(
                 f'New state after propagation:\n'
-                f'{self.puzzle_to_string(puzzle)}'
+                f'{self.puzzle_to_string(self.solution)}'
             )
-            return self.constraint_propagation(puzzle)
-    
-    def is_puzzle_solved(self, puzzle: list) -> bool:
-        '''
-        Check if all spaces have been filled
-        '''
-        flattened_puzzle = [y for row in puzzle for y in row]
-        return all(flattened_puzzle)
+            return self.constraint_propagation()
  
-    def get_next_space_with_least_candidates(self, puzzle: list) -> Tuple[tuple, list]:
+    def get_next_space_with_least_candidates(self) -> tuple:
         '''
         Instead of just getting next empty space, get next empty space with least number of candidates.
-        Return the coordinate (as a tuple) along with the list of possibles for that coordinate.
         '''
         possibles_by_length = {n: None for n in range(2,10)}
-        for rowno, row in enumerate(puzzle):
-            for colno, value in enumerate(row):
-                if not value:
-                    possibles_for_coord = self.get_possible_numbers_for_space(puzzle, rowno, colno)
-                    number_of_possibles = len(possibles_for_coord)
-                    # If the number of candidates is two (the minimum), there's no point in looping further
-                    if number_of_possibles == 2:
-                        return (rowno, colno), possibles_for_coord
-                    # Store just the first coordinate that has a given number of possibles
-                    if not possibles_by_length[number_of_possibles]:
-                        possibles_by_length[number_of_possibles] = ((rowno, colno), possibles_for_coord)
-        # Return the coord with lowest number of possibles that 
+        for row, row_possibles in enumerate(self.possibles):
+            for col, possibles in enumerate(row_possibles):
+                if len(possibles) == 1:
+                    continue
+                # If the number of candidates is two (the minimum), there's no point in looping further
+                if len(possibles) == 2:
+                    return (row, col)
+                # Store just the first coordinate that has a given number of possibles
+                if not possibles_by_length[len(possibles)]:
+                    possibles_by_length[len(possibles)] = (row, col)
+        # Return first coord with lowest number of possibles 
         for coord in possibles_by_length.values():
             if coord:
                 return coord 
         raise AlreadySolved(f'Puzzle is already solved!')
 
-    def experiment(self, puzzle: list, itertype: str = 'sequential') -> list:
-        '''
-        Get all possibilities for each space and experiment one at a time.
-        If the experiment results in an invalid grid state, backtrack and try next number.
-            Args:
-                puzzle -> the grid to solve
-                itertype -> the type of iteration when guessing possible numbers: 'sequential' (default), 'random' or 'reversed'.
-        '''
-        try:
-            coord, possibles = self.get_next_space_with_least_candidates(puzzle)
-            row, col = coord
-        except AlreadySolved:
-            self.logger.debug(f'No more empty spaces. Puzzle solved!')
-            return puzzle
-        if itertype == 'random':
-            random.shuffle(possibles)
-        elif itertype == 'reversed':
-            possibles.reverse()
-        for number in possibles:
-            self.logger.debug(f'Trying {number} in ({row},{col})...')
-            puzzle[row][col] = number
-            try:
-                puzzle_after_constraint_prop = self.constraint_propagation(deepcopy(puzzle))
-                puzzle_after_constraint_prop = self.experiment(puzzle_after_constraint_prop, itertype)
-                if puzzle_after_constraint_prop:
-                    return puzzle_after_constraint_prop
-            except NoValidNumbers:
-                puzzle[row][col] = 0
-    
     def solve(self, itertype: str = 'sequential') -> list:
         '''
         Solve the loaded puzzle by first applying constraint propagation techniques.
@@ -271,22 +228,34 @@ class Sudoku:
                 itertype: the type of iteration when guessing possible numbers: 'sequential' (default), 'random' or 'reversed'.
         Solution is stored in self.solution and also returned as a list
         '''
-        self.logger.info(f'Loaded puzzle:\n{self.puzzle_to_string(self.puzzle)}')
-        self.logger.info('Trying to solving puzzle using constraint propagation...')
-        start_time = time.perf_counter()
-        prop_result = self.constraint_propagation(deepcopy(self.puzzle))
-        if self.is_puzzle_solved(prop_result):
-            solution = prop_result
-        else:
-            self.logger.info('This is a tough one. Let me try guessing some numbers...')
-            solution = self.experiment(prop_result, itertype)
-        self.logger.info(f'Puzzle solved by {mp.current_process().name}')
-        end_time = time.perf_counter()
-        total_time = end_time - start_time
-        self.logger.info(f'Success! Puzzle solved in {total_time:.6f}s.')
-        self.logger.info(f'Solution:\n{self.puzzle_to_string(solution)}')
-        self.solution = solution
-        return solution       
+        try:
+            self.constraint_propagation()
+        except NoValidNumbers:
+            return False
+        try:
+            row, col = self.get_next_space_with_least_candidates()
+            possibles = self.possibles[row][col]
+        except AlreadySolved:
+            self.logger.debug(f'No more empty spaces. Puzzle solved!')
+            self.logger.info(f'Puzzle solved by {mp.current_process().name}')
+            self.logger.info(f'Solution:\n{self.puzzle_to_string(self.solution)}')
+            return self.solution
+        
+        if itertype == 'random':
+            random.shuffle(possibles)
+        elif itertype == 'reversed':
+            possibles.reverse()
+        
+        for number in possibles:
+            self.logger.debug(f'Trying {number} in ({row},{col})...')
+            backup_solution = deepcopy(self.solution)
+            backup_possibles = deepcopy(self.possibles)
+            self.solution[row][col] = number
+            self.update_possibles(number, (row, col))
+            if self.solve(itertype):
+                return self.solution
+            self.solution = deepcopy(backup_solution)
+            self.possibles = deepcopy(backup_possibles)     
 
     def build_puzzle_output_string(self, timetaken: float, no_solution: float) -> str:
         '''
@@ -310,15 +279,6 @@ class Sudoku:
             output.append(solution_as_string)
         return '\n'.join(output)
     
-    def generate_valid_board(self) -> list:
-        '''
-        Generates a random valid Sudoku board. Populates self.solution with the result.
-        '''
-        board = [[0 for _ in range(9)] for _ in range(9)]
-        solution = self.experiment(board, itertype='random')
-        self.solution = solution
-        return solution
-
     def remove_space(self, board) -> list: 
         '''
         Removes a random number from a board and then return the new board state.
@@ -343,7 +303,8 @@ class Sudoku:
         if clues < 17:
             raise ValueError('Cannot generate a unique puzzle with less than 17 clues.')
         toremove = 81-clues
-        puzzle = self.generate_valid_board()
+        puzzle = self.solve(itertype='random') #self.solution is complete
+
         loops = 0
         while toremove > 0:
             backup = deepcopy(puzzle)
@@ -370,8 +331,9 @@ class Sudoku:
         solutions = set()
         tries = 0
         while tries < max_tries:
-            partial_solution = self.constraint_propagation(deepcopy(puzzle))
-            new_solution = self.experiment(partial_solution, itertype='random')
+            # Reset instance attributes so puzzle can be solved from scratch
+            self.__init__(self.puzzle_to_notation(puzzle))
+            new_solution = self.solve(itertype='random')
             as_tuple = tuple([tuple(row) for row in new_solution]) # List is not hashable
             solutions.add(as_tuple)
             if len(solutions) > 1:
@@ -410,6 +372,7 @@ def solve_puzzle(puzzle_index: int, puzzle: str, loglevel: int) -> str:
     sud.solve()
     end = time.perf_counter()
     runtime = end-start
+    sud.logger.info(f'Elapsed time: {runtime:.6f}s')
     output = '\n\n' + sud.build_puzzle_output_string(runtime, False)
     print(f'Puzzle {puzzle_index} done ({runtime:.6f}s)')
     return output

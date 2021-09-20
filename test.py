@@ -197,6 +197,64 @@ class test(Sudoku):
             self.solution = deepcopy(backup_solution)
             self.possibles = deepcopy(backup_possibles)
 
+    def propose_puzzle(self, clues: int = 35) -> list:
+        '''
+        test
+        '''
+        if clues < 17:
+            raise ValueError('Cannot generate a unique puzzle with less than 17 clues.')
+        toremove = 81-clues
+        puzzle = self.solve(itertype='random') #self.solution is complete
+
+        loops = 0
+        while toremove > 0:
+            backup = deepcopy(puzzle)
+            puzzle = self.remove_space(puzzle)
+            if self.has_unique_solution(puzzle):
+                toremove -= 1
+                continue
+            else:
+                puzzle = deepcopy(backup)
+            if loops == 100:
+                self.logger.info('No unique puzzle found after 100 attempts. Trying a new board...')
+                return self.propose_puzzle(clues)
+            loops += 1
+        self.puzzle = puzzle
+        return puzzle
+
+    def remove_space(self, board) -> list: 
+        '''
+        Removes a random number from a board and then return the new board state.
+        '''
+        puzzle = deepcopy(board)
+        while True:
+            row = random.randint(0,8)
+            col = random.randint(0,8)
+            if not puzzle[row][col]:
+                continue
+            puzzle[row][col] = 0
+            return puzzle
+
+    def has_unique_solution(self, puzzle: list, max_tries: int = 100) -> bool:
+        '''
+        Checks if a given puzzle has a unique solution.
+            Args:
+                puzzle -> the current puzzle state to check
+                max_tries -> max number of attempts before deciding that the puzzle is unique
+        '''
+        solutions = set()
+        tries = 0
+        while tries < max_tries:
+            # Reset instance attributes so puzzle can be solved from scratch
+            self.__init__(self.puzzle_to_notation(puzzle))
+            new_solution = self.solve(itertype='random')
+            as_tuple = tuple([tuple(row) for row in new_solution]) # List is not hashable
+            solutions.add(as_tuple)
+            if len(solutions) > 1:
+                return False
+            tries += 1
+        return True
+
 def solve_puzzle(puzzle_index: int, puzzle: str, loglevel: int) -> str:
     '''
     Wrapper for the Sudoku.solve method that return the final string representation of the puzzle and its solution,
@@ -248,6 +306,12 @@ def main(args: argparse.Namespace) -> None:
 
         result = solve_puzzle(1, puzzle, loglevel=loglevel)
         print(result)
+    else:
+        sud = test()
+        res = sud.propose_puzzle()
+        print(sud.puzzle)
+        print(sud.solution)
+        print(sud.puzzle_to_notation(sud.puzzle))
 
 
 if __name__ == '__main__':
